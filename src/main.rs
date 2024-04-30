@@ -65,16 +65,21 @@ fn main() {
             let this_d4_unwrapped = this_d4.unwrap();
             match this_d4_unwrapped.dataType {
                 d4::DATATYPE::UCHAR => {
+                    println!("TLV: {}: {}", this_d4_unwrapped.t, this_d4_unwrapped.description);
                     println!("Decoded: {}", this_d4_unwrapped.get_int_value().unwrap());
                 },
                 d4::DATATYPE::UINT => {
+                    println!("TLV: {}: {}", this_d4_unwrapped.t, this_d4_unwrapped.description);
                     println!("Decoded: {}", this_d4_unwrapped.get_int_value().unwrap());
                 },
                 d4::DATATYPE::STRING => {
+                    println!("TLV: {}: {}", this_d4_unwrapped.t, this_d4_unwrapped.description);
                     println!("Decoded: {}", this_d4_unwrapped.get_string_value().unwrap());
                 }
                 d4::DATATYPE::AGGREGATE => {
+                    println!("TLV: {}: {}", this_d4_unwrapped.t, this_d4_unwrapped.description);
                     for (tag, stlv) in this_d4_unwrapped.sub_tlvs {
+                    if stlv.tlv.v != vec![] {
                         println!("Sub-TLV: {}: {} ({:?})", stlv.t, stlv.description, stlv.tlv.v);
                         match stlv.dataType {
                             DATATYPE::UCHAR => {
@@ -97,6 +102,7 @@ fn main() {
                                 println!("Aggregate");
                             }
                         }
+                    }
 
                     }
                 }

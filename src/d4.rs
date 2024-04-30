@@ -241,7 +241,30 @@ pub(crate) fn d4_defs() -> HashMap<u8, DOCSIS4TLV> {
             sub_tlvs: HashMap::new(),
     };
     tlv.sub_tlvs.insert(sub_tlv.t, sub_tlv);
-
+    let mut sub_tlv = DOCSIS4TLV {
+            t: 0x06,
+            description: "QosParamSetType".to_string(),
+            dataType: DATATYPE::UCHAR,
+            tlv: TLV { t: 0x6, l: 0, v: Vec::new(), sub_tlvs: Vec::new() },
+            sub_tlvs: HashMap::new(),
+    };
+    tlv.sub_tlvs.insert(sub_tlv.t, sub_tlv);
+    let mut sub_tlv = DOCSIS4TLV {
+            t: 0x07,
+            description: "TrafficPriority".to_string(),
+            dataType: DATATYPE::UCHAR,
+            tlv: TLV { t: 0x7, l: 0, v: Vec::new(), sub_tlvs: Vec::new() },
+            sub_tlvs: HashMap::new(),
+    };
+    tlv.sub_tlvs.insert(sub_tlv.t, sub_tlv);
+    let mut sub_tlv = DOCSIS4TLV {
+            t: 0x08,
+            description: "MaxRateSustained".to_string(),
+            dataType: DATATYPE::UINT,
+            tlv: TLV { t: 0x8, l: 0, v: Vec::new(), sub_tlvs: Vec::new() },
+            sub_tlvs: HashMap::new(),
+    };
+    tlv.sub_tlvs.insert(sub_tlv.t, sub_tlv);
     d4_defs.insert(tlv.t, tlv);
     d4_defs
 }
@@ -252,23 +275,6 @@ pub(crate) fn d4_defs() -> HashMap<u8, DOCSIS4TLV> {
 /*
 
 
-DocsisTlvs["24"]["subTlvs"]["06"] = {}
-DocsisTlvs["24"]["subTlvs"]["06"]["description"] = "QosParamSetType"
-DocsisTlvs["24"]["subTlvs"]["06"]["hex"] = "06"
-DocsisTlvs["24"]["subTlvs"]["06"]["datatype"] = "uchar"
-DocsisTlvs["24"]["subTlvs"]["06"]["subTlvs"] = {}
-
-DocsisTlvs["24"]["subTlvs"]["07"] = {}
-DocsisTlvs["24"]["subTlvs"]["07"]["description"] = "TrafficPriority"
-DocsisTlvs["24"]["subTlvs"]["07"]["hex"] = "07"
-DocsisTlvs["24"]["subTlvs"]["07"]["datatype"] = "uchar"
-DocsisTlvs["24"]["subTlvs"]["07"]["subTlvs"] = {}
-
-DocsisTlvs["24"]["subTlvs"]["08"] = {}
-DocsisTlvs["24"]["subTlvs"]["08"]["description"] = "MaxRateSustained"
-DocsisTlvs["24"]["subTlvs"]["08"]["hex"] = "08"
-DocsisTlvs["24"]["subTlvs"]["08"]["datatype"] = "uint"
-DocsisTlvs["24"]["subTlvs"]["08"]["subTlvs"] = {}
 
 DocsisTlvs["24"]["subTlvs"]["09"] = {}
 DocsisTlvs["24"]["subTlvs"]["09"]["description"] = "MaxTrafficBurst"

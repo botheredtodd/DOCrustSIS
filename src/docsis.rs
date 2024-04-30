@@ -8,7 +8,7 @@ pub(crate) fn decode(tlv: TLV, d4: HashMap<u8, DOCSIS4TLV>) -> Result<DOCSIS4TLV
 
 
     if d4.contains_key(&tlv.t) {
-        println!("Found TLV: {}: {}", tlv.t, d4.get(&tlv.t).unwrap().description);
+        // println!("Found TLV: {}: {}", tlv.t, d4.get(&tlv.t).unwrap().description);
         let mut ret = d4.get(&tlv.t).unwrap().clone();
         ret.tlv = tlv.clone();
         match ret.dataType {
@@ -24,9 +24,11 @@ pub(crate) fn decode(tlv: TLV, d4: HashMap<u8, DOCSIS4TLV>) -> Result<DOCSIS4TLV
                     }
                     i += 2 + tlv.v[i + 1] as usize;
                 }
+
             },
             _ => {}
         }
+
         return Ok(ret);
     }
     else {
