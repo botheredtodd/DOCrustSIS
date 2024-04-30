@@ -1,3 +1,6 @@
+mod docsis;
+mod TLV;
+
 use std::{env, fmt};
 use getopts::Options;
 use std::fs::File;
@@ -9,20 +12,7 @@ fn print_usage(program: &str, opts: Options) {
     print!("{}", opts.usage(&brief));
 }
 
-struct TLV {
-    t: u8,
-    l: u8,
-    v: Vec<u8>,
-}
 
-impl fmt::Display for TLV {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "Type: {}, Length: {}, Value: {:?}", self.t, self.l, self.v)
-    }
-}
-struct TLVList {
-    tlvs: Vec<TLV>,
-}
 
 fn main() {
     let args: Vec<String> = env::args().collect();
@@ -46,7 +36,7 @@ fn main() {
         println!("You must provide a file to parse");
         std::process::exit(1);
     };
-    let mut tlv_list = TLVList { tlvs: Vec::new() };
+    let mut tlv_list = TLV::TLVList { tlvs: Vec::new() };
     println!("File: {}", filename);
     let mut f = File::open(filename).unwrap();
 
@@ -58,14 +48,15 @@ fn main() {
         let t = buffer[i];
         let l = buffer[i + 1];
         let mut v = Vec::new();
+        let mut sub :Vec<TLV::TLV> = Vec::new();
         for j in 0..l {
             v.push(buffer[i + 2 + j as usize]);
         }
-        let tlv = TLV { t, l, v };
+        let tlv = TLV::TLV { t, l, v, sub_tlvs: sub};
         tlv_list.tlvs.push(tlv);
         i += 2 + l as usize;
     }
     for tlv in tlv_list.tlvs {
-        println!("{}", tlv);
+        println!("{:?}", tlv);
     }
 }
