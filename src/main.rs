@@ -1,6 +1,7 @@
 mod docsis;
 mod TLV;
 mod d4;
+mod MIB;
 
 use std::{env, fmt};
 use getopts::Options;
@@ -8,6 +9,7 @@ use std::fs::File;
 use std::io::prelude::*;
 use std::io;
 use crate::d4::{d4_defs, DATATYPE};
+// use crate::MIB::MIB;
 
 fn print_usage(program: &str, opts: Options) {
     let brief = format!("Usage: {} FILE [options]", program);
@@ -76,30 +78,39 @@ fn main() {
                     println!("TLV: {}: {}", this_d4_unwrapped.t, this_d4_unwrapped.description);
                     println!("Decoded: {}", this_d4_unwrapped.get_string_value().unwrap());
                 }
+                d4::DATATYPE::MIB => {
+                    println!("TLV: {}: {}", this_d4_unwrapped.t, this_d4_unwrapped.description);
+                    // println!("Decoded: {}", this_d4_unwrapped.get_mib_value().unwrap());
+                    let mb = MIB::MIB::from_bytes(this_d4_unwrapped.tlv.v.clone());
+                    println!("MIB: {}: {:?}", mb.oid, mb.value);
+                }
                 d4::DATATYPE::AGGREGATE => {
                     println!("TLV: {}: {}", this_d4_unwrapped.t, this_d4_unwrapped.description);
                     for (tag, stlv) in this_d4_unwrapped.sub_tlvs {
                     if stlv.tlv.v != vec![] {
-                        println!("Sub-TLV: {}: {} ({:?})", stlv.t, stlv.description, stlv.tlv.v);
+                        println!("\tSub-TLV: {}: {} ({:?})", stlv.t, stlv.description, stlv.tlv.v);
                         match stlv.dataType {
                             DATATYPE::UCHAR => {
-                                println!("Decoded: {}", stlv.get_int_value().unwrap());
+                                println!("\tDecoded: {}", stlv.get_int_value().unwrap());
                             },
                             DATATYPE::UINT => {
-                                println!("Decoded: {}", stlv.get_int_value().unwrap());
+                                println!("\tDecoded: {}", stlv.get_int_value().unwrap());
                             },
                             DATATYPE::USHORT => {
-                                println!("Decoded: {}", stlv.get_int_value().unwrap());
+                                println!("\tDecoded: {}", stlv.get_int_value().unwrap());
                             },
                             DATATYPE::STRING => {
-                                println!("Decoded: {}", stlv.get_string_value().unwrap());
+                                println!("\tDecoded: {}", stlv.get_string_value().unwrap());
                             }
                             DATATYPE::STRINGZERO => {
-                                println!("Decoded: {}", stlv.get_string_value().unwrap());
+                                println!("\tDecoded: {}", stlv.get_string_value().unwrap());
                             }
                             //_ => {}
                             DATATYPE::AGGREGATE => {
                                 println!("Aggregate");
+                            }
+                            DATATYPE::MIB => {
+                                println!("MIB");
                             }
                         }
                     }

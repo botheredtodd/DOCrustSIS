@@ -3,6 +3,7 @@
 use std::cmp::PartialEq;
 use std::collections::HashMap;
 use crate::TLV::TLV;
+use crate::MIB::MIB;
 #[derive(Clone)]
 pub(crate) enum DATATYPE {
     UCHAR,
@@ -11,6 +12,7 @@ pub(crate) enum DATATYPE {
     STRING,
     STRINGZERO,
     AGGREGATE,
+    MIB,
 
 
 }
@@ -61,6 +63,10 @@ impl DOCSIS4TLV {
             DATATYPE::AGGREGATE => {
                 Err("Sub TLVs not working yet".to_string())
             },
+            DATATYPE::MIB => {
+                let _ = MIB::from_bytes(self.tlv.v);
+                Err("Not yet supported".to_string())
+            }
             _ => {
                 Err("Not yet supported".to_string())
             }
@@ -202,6 +208,17 @@ pub(crate) fn d4_defs() -> HashMap<u8, DOCSIS4TLV> {
         sub_tlvs: HashMap::new(),
     };
     d4_defs.insert(tlv.t, tlv);
+
+    let mut tlv = DOCSIS4TLV {
+        t: 0x0b,
+        description: "SnmpMibObject".to_string(),
+        dataType: DATATYPE::MIB,
+        tlv: TLV { t: 0x0b, l: 0, v: Vec::new(), sub_tlvs: Vec::new() },
+        sub_tlvs: HashMap::new(),
+    };
+    d4_defs.insert(tlv.t, tlv);
+
+
     let mut tlv = DOCSIS4TLV {
         t: 0x18,
         description: "UsServiceFlow".to_string(),
@@ -245,7 +262,7 @@ pub(crate) fn d4_defs() -> HashMap<u8, DOCSIS4TLV> {
             t: 0x06,
             description: "QosParamSetType".to_string(),
             dataType: DATATYPE::UCHAR,
-            tlv: TLV { t: 0x6, l: 0, v: Vec::new(), sub_tlvs: Vec::new() },
+            tlv: TLV { t: 0x06, l: 0, v: Vec::new(), sub_tlvs: Vec::new() },
             sub_tlvs: HashMap::new(),
     };
     tlv.sub_tlvs.insert(sub_tlv.t, sub_tlv);
@@ -253,7 +270,7 @@ pub(crate) fn d4_defs() -> HashMap<u8, DOCSIS4TLV> {
             t: 0x07,
             description: "TrafficPriority".to_string(),
             dataType: DATATYPE::UCHAR,
-            tlv: TLV { t: 0x7, l: 0, v: Vec::new(), sub_tlvs: Vec::new() },
+            tlv: TLV { t: 0x07, l: 0, v: Vec::new(), sub_tlvs: Vec::new() },
             sub_tlvs: HashMap::new(),
     };
     tlv.sub_tlvs.insert(sub_tlv.t, sub_tlv);
@@ -261,11 +278,37 @@ pub(crate) fn d4_defs() -> HashMap<u8, DOCSIS4TLV> {
             t: 0x08,
             description: "MaxRateSustained".to_string(),
             dataType: DATATYPE::UINT,
-            tlv: TLV { t: 0x8, l: 0, v: Vec::new(), sub_tlvs: Vec::new() },
+            tlv: TLV { t: 0x08, l: 0, v: Vec::new(), sub_tlvs: Vec::new() },
             sub_tlvs: HashMap::new(),
     };
     tlv.sub_tlvs.insert(sub_tlv.t, sub_tlv);
+    let mut sub_tlv = DOCSIS4TLV {
+            t: 0x09,
+            description: "MaxTrafficBurst".to_string(),
+            dataType: DATATYPE::UINT,
+            tlv: TLV { t: 0x09, l: 0, v: Vec::new(), sub_tlvs: Vec::new() },
+            sub_tlvs: HashMap::new(),
+    };
+    tlv.sub_tlvs.insert(sub_tlv.t, sub_tlv);
+    let mut sub_tlv = DOCSIS4TLV {
+            t: 0x0a,
+            description: "MinReservedRate".to_string(),
+            dataType: DATATYPE::UINT,
+            tlv: TLV { t: 0x0a, l: 0, v: Vec::new(), sub_tlvs: Vec::new() },
+            sub_tlvs: HashMap::new(),
+    };
+    tlv.sub_tlvs.insert(sub_tlv.t, sub_tlv);
+    let mut sub_tlv = DOCSIS4TLV {
+            t: 0x0b,
+            description: "MinResPacketSize".to_string(),
+            dataType: DATATYPE::USHORT,
+            tlv: TLV { t: 0x0b, l: 0, v: Vec::new(), sub_tlvs: Vec::new() },
+            sub_tlvs: HashMap::new(),
+    };
+    tlv.sub_tlvs.insert(sub_tlv.t, sub_tlv);
+
     d4_defs.insert(tlv.t, tlv);
+
     d4_defs
 }
 
@@ -274,25 +317,6 @@ pub(crate) fn d4_defs() -> HashMap<u8, DOCSIS4TLV> {
 
 /*
 
-
-
-DocsisTlvs["24"]["subTlvs"]["09"] = {}
-DocsisTlvs["24"]["subTlvs"]["09"]["description"] = "MaxTrafficBurst"
-DocsisTlvs["24"]["subTlvs"]["09"]["hex"] = "09"
-DocsisTlvs["24"]["subTlvs"]["09"]["datatype"] = "uint"
-DocsisTlvs["24"]["subTlvs"]["09"]["subTlvs"] = {}
-
-DocsisTlvs["24"]["subTlvs"]["10"] = {}
-DocsisTlvs["24"]["subTlvs"]["10"]["description"] = "MinReservedRate"
-DocsisTlvs["24"]["subTlvs"]["10"]["hex"] = "0a"
-DocsisTlvs["24"]["subTlvs"]["10"]["datatype"] = "uint"
-DocsisTlvs["24"]["subTlvs"]["10"]["subTlvs"] = {}
-
-DocsisTlvs["24"]["subTlvs"]["11"] = {}
-DocsisTlvs["24"]["subTlvs"]["11"]["description"] = "MinResPacketSize"
-DocsisTlvs["24"]["subTlvs"]["11"]["hex"] = "0b"
-DocsisTlvs["24"]["subTlvs"]["11"]["datatype"] = "ushort"
-DocsisTlvs["24"]["subTlvs"]["11"]["subTlvs"] = {}
 
 DocsisTlvs["24"]["subTlvs"]["12"] = {}
 DocsisTlvs["24"]["subTlvs"]["12"]["description"] = "ActQosParamsTimeout"
