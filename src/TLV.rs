@@ -1,6 +1,6 @@
 use std::fmt;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub(crate) struct TLV {
     pub(crate) t: u8,
     pub(crate) l: u8,

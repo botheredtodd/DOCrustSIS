@@ -1,5 +1,6 @@
 mod docsis;
 mod TLV;
+mod d4;
 
 use std::{env, fmt};
 use getopts::Options;
@@ -57,6 +58,20 @@ fn main() {
         i += 2 + l as usize;
     }
     for tlv in tlv_list.tlvs {
-        println!("{:?}", tlv);
+        let this_d4 = docsis::decode(tlv);
+        if this_d4.is_ok() {
+            let this_d4_unwrapped = this_d4.unwrap();
+            match this_d4_unwrapped.dataType {
+                d4::DATATYPE::UCHAR => {
+                    println!("Decoded: {}", this_d4_unwrapped.get_int_value().unwrap());
+                },
+                d4::DATATYPE::UINT => {
+                    println!("Decoded: {}", this_d4_unwrapped.get_int_value().unwrap());
+                },
+                d4::DATATYPE::STRING => {
+                    println!("Decoded: {}", this_d4_unwrapped.get_string_value().unwrap());
+                }
+            }
+        }
     }
 }
