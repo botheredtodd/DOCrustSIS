@@ -1,8 +1,21 @@
 [package]
-name = "docrust"
+name = "DoCrustSis"
 version = "0.1.0"
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
+
+[profile.dev]
+opt-level = 0
+
+[profile.release]
+opt-level = 3
+
 [dependencies]
+error-chain = { version = "0.12.4", features = [] }
+getopts = { version = "0.2.21", features = [] }
+
+[[bin]]
+name = "docrustis"
+path = "src/main.rs"
