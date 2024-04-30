@@ -1,14 +1,32 @@
+use std::collections::HashMap;
 use crate::TLV::TLV;
 use std::fmt;
 use crate::d4::d4_defs;
 use crate::d4::DOCSIS4TLV;
-pub(crate) fn decode(tlv: TLV) -> Result<DOCSIS4TLV, String> {
+use crate::d4::DATATYPE;
+pub(crate) fn decode(tlv: TLV, d4: HashMap<u8, DOCSIS4TLV>) -> Result<DOCSIS4TLV, String> {
 
-    let d4 = d4_defs();
+
     if d4.contains_key(&tlv.t) {
         println!("Found TLV: {}: {}", tlv.t, d4.get(&tlv.t).unwrap().description);
         let mut ret = d4.get(&tlv.t).unwrap().clone();
         ret.tlv = tlv.clone();
+        match ret.dataType {
+            DATATYPE::AGGREGATE => {
+                let mut i = 0;
+                let d4sub = d4.get(&ret.t).unwrap().clone();
+                while i < tlv.v.len() {
+                    let stlv = TLV { t: tlv.v[i], l: tlv.v[i + 1], v: tlv.v[i + 2..i + 2 + tlv.v[i + 1] as usize].to_vec(), sub_tlvs: Vec::new() };
+                    let this_d4 = decode(stlv, d4sub.sub_tlvs.clone());
+                    if this_d4.is_ok() {
+                        let this_d4_unwrapped = this_d4.unwrap();
+                        ret.sub_tlvs.insert(this_d4_unwrapped.t, this_d4_unwrapped);
+                    }
+                    i += 2 + tlv.v[i + 1] as usize;
+                }
+            },
+            _ => {}
+        }
         return Ok(ret);
     }
     else {

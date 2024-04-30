@@ -7,6 +7,7 @@ use getopts::Options;
 use std::fs::File;
 use std::io::prelude::*;
 use std::io;
+use crate::d4::{d4_defs, DATATYPE};
 
 fn print_usage(program: &str, opts: Options) {
     let brief = format!("Usage: {} FILE [options]", program);
@@ -38,6 +39,7 @@ fn main() {
         std::process::exit(1);
     };
     let mut tlv_list = TLV::TLVList { tlvs: Vec::new() };
+    let d4d = d4_defs();
     println!("File: {}", filename);
     let mut f = File::open(filename).unwrap();
 
@@ -58,7 +60,7 @@ fn main() {
         i += 2 + l as usize;
     }
     for tlv in tlv_list.tlvs {
-        let this_d4 = docsis::decode(tlv);
+        let this_d4 = docsis::decode(tlv, d4d.clone());
         if this_d4.is_ok() {
             let this_d4_unwrapped = this_d4.unwrap();
             match this_d4_unwrapped.dataType {
@@ -71,6 +73,34 @@ fn main() {
                 d4::DATATYPE::STRING => {
                     println!("Decoded: {}", this_d4_unwrapped.get_string_value().unwrap());
                 }
+                d4::DATATYPE::AGGREGATE => {
+                    for (tag, stlv) in this_d4_unwrapped.sub_tlvs {
+                        println!("Sub-TLV: {}: {} ({:?})", stlv.t, stlv.description, stlv.tlv.v);
+                        match stlv.dataType {
+                            DATATYPE::UCHAR => {
+                                println!("Decoded: {}", stlv.get_int_value().unwrap());
+                            },
+                            DATATYPE::UINT => {
+                                println!("Decoded: {}", stlv.get_int_value().unwrap());
+                            },
+                            DATATYPE::USHORT => {
+                                println!("Decoded: {}", stlv.get_int_value().unwrap());
+                            },
+                            DATATYPE::STRING => {
+                                println!("Decoded: {}", stlv.get_string_value().unwrap());
+                            }
+                            DATATYPE::STRINGZERO => {
+                                println!("Decoded: {}", stlv.get_string_value().unwrap());
+                            }
+                            //_ => {}
+                            DATATYPE::AGGREGATE => {
+                                println!("Aggregate");
+                            }
+                        }
+
+                    }
+                }
+                _ => {}
             }
         }
     }
