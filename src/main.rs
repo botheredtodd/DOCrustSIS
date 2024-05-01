@@ -8,6 +8,8 @@ use getopts::Options;
 use std::fs::File;
 use std::io::prelude::*;
 use std::io;
+use directories::UserDirs;
+
 use crate::d4::{d4_defs, DATATYPE};
 // use crate::MIB::MIB;
 
@@ -19,6 +21,9 @@ fn print_usage(program: &str, opts: Options) {
 
 
 fn main() {
+    let filename = format!("{}/.mibs.json", UserDirs::new().unwrap().home_dir().to_str().unwrap());
+    println!("Loading MIBs from: {}", filename);
+    let miblist = MIB::MIBList::from_file(filename.as_str());
     let args: Vec<String> = env::args().collect();
     let program = args[0].clone();
 
@@ -82,7 +87,14 @@ fn main() {
                     println!("TLV: {}: {}", this_d4_unwrapped.t, this_d4_unwrapped.description);
                     // println!("Decoded: {}", this_d4_unwrapped.get_mib_value().unwrap());
                     let mb = MIB::MIB::from_bytes(this_d4_unwrapped.tlv.v.clone());
-                    println!("MIB: {}: {:?}", mb.oid, mb.value);
+                    let mbname = miblist.get_mib(mb.oid.as_str());
+                    if mbname.is_some() {
+                        println!("MIB: {} ({}): {:?}", mb.oid, mbname.unwrap().name, mb.value);
+                    }
+                    else {
+                        println!("MIB: {} ({}): {:?}", mb.oid, "Unknown MIB", mb.value);
+
+                    }
                 }
                 d4::DATATYPE::AGGREGATE => {
                     println!("TLV: {}: {}", this_d4_unwrapped.t, this_d4_unwrapped.description);

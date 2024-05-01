@@ -1,12 +1,16 @@
 use std::collections::hash_map::Values;
 use std::collections::HashMap;
+use rustc_serialize::json::Json;
+use std::fs::File;
+use std::io::Read;
+use crate::d4::DATATYPE;
 
 pub(crate) struct MIB {
     pub(crate) name: String,
     pub(crate) description: String,
     pub(crate) oid: String,
     pub(crate) value: Vec<u8>,
-    pub(crate) children: Vec<MIB>,
+    pub(crate) datatype: String
 }
 
 impl MIB{
@@ -16,7 +20,7 @@ impl MIB{
             description: "".to_string(),
             oid: "".to_string(),
             value: Vec::new(),
-            children: Vec::new(),
+            datatype: "".to_string(),
         };
         if bytes.len() < 2 {
             return mib;
@@ -82,4 +86,62 @@ impl MIB{
         println!("OID with garbage: {}", oid_string);
         mib
     }
+}
+
+pub(crate) struct MIBList {
+    pub(crate) mibs: HashMap<String, MIB>,
+}
+
+impl MIBList {
+    pub(crate) fn new() -> MIBList {
+        MIBList {
+            mibs: HashMap::new(),
+        }
+    }
+
+    pub(crate) fn add_mib(&mut self, mib: MIB) {
+        self.mibs.insert(mib.oid.clone(), mib);
+    }
+
+    pub(crate) fn get_mib(&self, oid: &str) -> Option<&MIB> {
+        if self.mibs.contains_key(oid) {
+            return Some(self.mibs.get(oid).unwrap());
+        }
+        else { return None; }
+    }
+
+    pub(crate) fn get_mibs(&self) -> Values<String, MIB> {
+        self.mibs.values()
+    }
+    pub(crate) fn from_file(filename: &str) -> MIBList {
+        let mut retval = MIBList::new();
+        let mut file = File::open(filename).unwrap();
+        let mut data = String::new();
+        file.read_to_string(&mut data).unwrap();
+        let json = Json::from_str(&data).unwrap();
+        for (key, value) in json.as_object().unwrap() {
+            let mut mib = MIB {
+                name: "".to_string(),
+                description: "".to_string(),
+                oid: key.clone(),
+                datatype: "".to_string(),
+                value: Vec::new(),
+            };
+            for (k, v) in value.as_object().unwrap() {
+                match k.as_str() {
+                    "name" => mib.name = v.as_string().unwrap().to_string(),
+                    "description" => mib.description = v.as_string().unwrap().to_string(),
+                    "syntax" => { if v.as_string().is_none() {
+                        // do nothing
+                    } else {
+                        mib.datatype = v.as_string().unwrap().to_string()
+                    }
+                    },
+                    _ => {}
+                }
+            }
+            retval.add_mib(mib);
+        }
+        retval
+}
 }

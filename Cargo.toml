@@ -15,6 +15,10 @@ opt-level = 3
 [dependencies]
 error-chain = { version = "0.12.4", features = [] }
 getopts = { version = "0.2.21", features = [] }
+rustc-serialize = "0.3.25"
+serde = { version = "1.0.130", features = ["derive"] }
+serde_json = "1.0.68"
+directories = "5.0.1"
 
 [[bin]]
 name = "docrustis"
