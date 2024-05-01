@@ -1,10 +1,10 @@
 use std::collections::HashMap;
-use crate::TLV::TLV;
+use crate::tlv::TLV;
 use std::fmt;
 use crate::d4::d4_defs;
 use crate::d4::DOCSIS4TLV;
 use crate::d4::DATATYPE;
-use crate::MIB::MIB;
+use crate::mib::MIB;
 pub(crate) fn decode(tlv: TLV, d4: HashMap<u8, DOCSIS4TLV>) -> Result<DOCSIS4TLV, String> {
 
 
@@ -12,7 +12,7 @@ pub(crate) fn decode(tlv: TLV, d4: HashMap<u8, DOCSIS4TLV>) -> Result<DOCSIS4TLV
         // println!("Found TLV: {}: {}", tlv.t, d4.get(&tlv.t).unwrap().description);
         let mut ret = d4.get(&tlv.t).unwrap().clone();
         ret.tlv = tlv.clone();
-        match ret.dataType {
+        match ret.data_type {
             DATATYPE::AGGREGATE => {
                 let mut i = 0;
                 let d4sub = d4.get(&ret.t).unwrap().clone();

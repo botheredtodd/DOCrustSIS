@@ -2,8 +2,8 @@
 
 use std::cmp::PartialEq;
 use std::collections::HashMap;
-use crate::TLV::TLV;
-use crate::MIB::MIB;
+use crate::tlv::TLV;
+use crate::mib::MIB;
 #[derive(Clone)]
 pub(crate) enum DATATYPE {
     UCHAR,
@@ -13,6 +13,7 @@ pub(crate) enum DATATYPE {
     STRINGZERO,
     AGGREGATE,
     MIB,
+    HEXSTR,
 
 
 }
@@ -20,7 +21,7 @@ pub(crate) enum DATATYPE {
 pub(crate) struct DOCSIS4TLV {
     pub(crate) t: u8,
     pub(crate) description: String,
-    pub(crate) dataType: DATATYPE,
+    pub(crate) data_type: DATATYPE,
     pub(crate) tlv: TLV,
     pub(crate) sub_tlvs: HashMap<u8, DOCSIS4TLV>,
     pub(crate) mib: Option<MIB>,
@@ -30,7 +31,7 @@ impl Default for DOCSIS4TLV {
         DOCSIS4TLV {
             t: 0,
             description: "".to_string(),
-            dataType: DATATYPE::UCHAR,
+            data_type: DATATYPE::UCHAR,
             tlv: TLV { t: 0, l: 0, v: Vec::new(), sub_tlvs: Vec::new() },
             sub_tlvs: HashMap::new(),
             mib: None,
@@ -41,7 +42,7 @@ impl Default for DOCSIS4TLV {
 
 impl DOCSIS4TLV {
     pub(crate) fn get_int_value(self) -> Result<u32, String>{
-        match self.dataType {
+        match self.data_type {
             DATATYPE::UCHAR => {
                 let mut v = 0;
                 for i in 0..self.tlv.l {
@@ -85,7 +86,7 @@ impl DOCSIS4TLV {
         }
     }
     pub(crate) fn set_int_value(&mut self, v: i32) -> Result<i32, String> {
-        match self.dataType{
+        match self.data_type{
             DATATYPE::UCHAR => {
                 let mut v = v;
                 let mut l = 0;
@@ -147,7 +148,7 @@ impl DOCSIS4TLV {
 
     }
     pub(crate) fn get_string_value(self) -> Result<String, String> {
-        match self.dataType {
+        match self.data_type {
             DATATYPE::UCHAR => {
                 let mut s = String::new();
                 for i in 0..self.tlv.l {
@@ -199,7 +200,7 @@ pub(crate) fn d4_defs() -> HashMap<u8, DOCSIS4TLV> {
     let mut tlv = DOCSIS4TLV {
         t: 0x01,
         description: "DownstreamFrequency".to_string(),
-        dataType: DATATYPE::UINT,
+        data_type: DATATYPE::UINT,
         tlv: TLV { t: 0x01, l: 0, v: Vec::new(), sub_tlvs: Vec::new() },
         sub_tlvs: HashMap::new(),
         mib: None,
@@ -208,7 +209,7 @@ pub(crate) fn d4_defs() -> HashMap<u8, DOCSIS4TLV> {
     let mut tlv = DOCSIS4TLV {
         t: 0x02,
         description: "UpstreamChannelId".to_string(),
-        dataType: DATATYPE::UCHAR,
+        data_type: DATATYPE::UCHAR,
         tlv: TLV { t: 0x02, l: 0, v: Vec::new(), sub_tlvs: Vec::new() },
         sub_tlvs: HashMap::new(),
         mib: None,
@@ -217,7 +218,7 @@ pub(crate) fn d4_defs() -> HashMap<u8, DOCSIS4TLV> {
     let mut tlv = DOCSIS4TLV {
         t: 0x03,
         description: "NetworkAccess".to_string(),
-        dataType: DATATYPE::UCHAR,
+        data_type: DATATYPE::UCHAR,
         tlv: TLV { t: 0x03, l: 0, v: Vec::new(), sub_tlvs: Vec::new() },
         sub_tlvs: HashMap::new(),
         mib: None,
@@ -227,18 +228,19 @@ pub(crate) fn d4_defs() -> HashMap<u8, DOCSIS4TLV> {
     let mut tlv = DOCSIS4TLV {
         t: 0x0b,
         description: "SnmpMibObject".to_string(),
-        dataType: DATATYPE::MIB,
+        data_type: DATATYPE::MIB,
         tlv: TLV { t: 0x0b, l: 0, v: Vec::new(), sub_tlvs: Vec::new() },
         sub_tlvs: HashMap::new(),
         mib: None,
     };
     d4_defs.insert(tlv.t, tlv);
 
+//Upstream Service Flow
 
     let mut tlv = DOCSIS4TLV {
         t: 0x18,
         description: "UsServiceFlow".to_string(),
-        dataType: DATATYPE::AGGREGATE,
+        data_type: DATATYPE::AGGREGATE,
         tlv: TLV { t: 0x18, l: 0, v: Vec::new(), sub_tlvs: Vec::new() },
         sub_tlvs: HashMap::new(),
         mib: None,
@@ -246,7 +248,7 @@ pub(crate) fn d4_defs() -> HashMap<u8, DOCSIS4TLV> {
     let mut sub_tlv = DOCSIS4TLV {
         t: 0x01,
         description: "UsServiceFlowRef".to_string(),
-        dataType: DATATYPE::USHORT,
+        data_type: DATATYPE::USHORT,
         tlv: TLV { t: 0x01, l: 0, v: Vec::new(), sub_tlvs: Vec::new() },
         sub_tlvs: HashMap::new(),
         mib: None,
@@ -255,7 +257,7 @@ pub(crate) fn d4_defs() -> HashMap<u8, DOCSIS4TLV> {
     let mut sub_tlv = DOCSIS4TLV {
         t: 0x02,
         description: "UsServiceFlowId".to_string(),
-        dataType: DATATYPE::UINT,
+        data_type: DATATYPE::UINT,
         tlv: TLV { t: 0x02, l: 0, v: Vec::new(), sub_tlvs: Vec::new() },
         sub_tlvs: HashMap::new(),
         mib: None,
@@ -264,7 +266,7 @@ pub(crate) fn d4_defs() -> HashMap<u8, DOCSIS4TLV> {
     let mut sub_tlv = DOCSIS4TLV {
         t: 0x03,
         description: "ServiceIdentifier".to_string(),
-        dataType: DATATYPE::USHORT,
+        data_type: DATATYPE::USHORT,
         tlv: TLV { t: 0x03, l: 0, v: Vec::new(), sub_tlvs: Vec::new() },
         sub_tlvs: HashMap::new(),
         mib: None,
@@ -273,7 +275,7 @@ pub(crate) fn d4_defs() -> HashMap<u8, DOCSIS4TLV> {
     let mut sub_tlv = DOCSIS4TLV {
         t: 0x04,
         description: "ServiceClassName".to_string(),
-        dataType: DATATYPE::STRINGZERO,
+        data_type: DATATYPE::STRINGZERO,
         tlv: TLV { t: 0x04, l: 0, v: Vec::new(), sub_tlvs: Vec::new() },
         sub_tlvs: HashMap::new(),
         mib: None,
@@ -282,7 +284,7 @@ pub(crate) fn d4_defs() -> HashMap<u8, DOCSIS4TLV> {
     let mut sub_tlv = DOCSIS4TLV {
         t: 0x06,
         description: "QosParamSetType".to_string(),
-        dataType: DATATYPE::UCHAR,
+        data_type: DATATYPE::UCHAR,
         tlv: TLV { t: 0x06, l: 0, v: Vec::new(), sub_tlvs: Vec::new() },
         sub_tlvs: HashMap::new(),
         mib: None,
@@ -291,7 +293,7 @@ pub(crate) fn d4_defs() -> HashMap<u8, DOCSIS4TLV> {
     let mut sub_tlv = DOCSIS4TLV {
             t: 0x07,
             description: "TrafficPriority".to_string(),
-            dataType: DATATYPE::UCHAR,
+            data_type: DATATYPE::UCHAR,
             tlv: TLV { t: 0x07, l: 0, v: Vec::new(), sub_tlvs: Vec::new() },
             sub_tlvs: HashMap::new(),
         mib: None,
@@ -300,7 +302,7 @@ pub(crate) fn d4_defs() -> HashMap<u8, DOCSIS4TLV> {
     let mut sub_tlv = DOCSIS4TLV {
             t: 0x08,
             description: "MaxRateSustained".to_string(),
-            dataType: DATATYPE::UINT,
+            data_type: DATATYPE::UINT,
             tlv: TLV { t: 0x08, l: 0, v: Vec::new(), sub_tlvs: Vec::new() },
             sub_tlvs: HashMap::new(),
         mib: None,
@@ -309,7 +311,7 @@ pub(crate) fn d4_defs() -> HashMap<u8, DOCSIS4TLV> {
     let mut sub_tlv = DOCSIS4TLV {
             t: 0x09,
             description: "MaxTrafficBurst".to_string(),
-            dataType: DATATYPE::UINT,
+            data_type: DATATYPE::UINT,
             tlv: TLV { t: 0x09, l: 0, v: Vec::new(), sub_tlvs: Vec::new() },
             sub_tlvs: HashMap::new(),
         mib: None,
@@ -318,7 +320,7 @@ pub(crate) fn d4_defs() -> HashMap<u8, DOCSIS4TLV> {
     let mut sub_tlv = DOCSIS4TLV {
             t: 0x0a,
             description: "MinReservedRate".to_string(),
-            dataType: DATATYPE::UINT,
+            data_type: DATATYPE::UINT,
             tlv: TLV { t: 0x0a, l: 0, v: Vec::new(), sub_tlvs: Vec::new() },
             sub_tlvs: HashMap::new(),
         mib: None,
@@ -327,7 +329,7 @@ pub(crate) fn d4_defs() -> HashMap<u8, DOCSIS4TLV> {
     let mut sub_tlv = DOCSIS4TLV {
             t: 0x0b,
             description: "MinResPacketSize".to_string(),
-            dataType: DATATYPE::USHORT,
+            data_type: DATATYPE::USHORT,
             tlv: TLV { t: 0x0b, l: 0, v: Vec::new(), sub_tlvs: Vec::new() },
             sub_tlvs: HashMap::new(),
         mib: None,
@@ -336,7 +338,7 @@ pub(crate) fn d4_defs() -> HashMap<u8, DOCSIS4TLV> {
     let mut sub_tlv = DOCSIS4TLV {
             t: 0x0c,
             description: "ActQosParamsTimeout".to_string(),
-            dataType: DATATYPE::USHORT,
+            data_type: DATATYPE::USHORT,
             tlv: TLV { t: 0x0c, l: 0, v: Vec::new(), sub_tlvs: Vec::new() },
             sub_tlvs: HashMap::new(),
         mib: None,
@@ -345,8 +347,89 @@ pub(crate) fn d4_defs() -> HashMap<u8, DOCSIS4TLV> {
     let mut sub_tlv = DOCSIS4TLV {
             t: 0x0d,
             description: "AdmQosParamsTimeout".to_string(),
-            dataType: DATATYPE::USHORT,
+            data_type: DATATYPE::USHORT,
             tlv: TLV { t: 0x0d, l: 0, v: Vec::new(), sub_tlvs: Vec::new() },
+            sub_tlvs: HashMap::new(),
+        mib: None,
+    };
+    tlv.sub_tlvs.insert(sub_tlv.t, sub_tlv);
+    let mut sub_tlv = DOCSIS4TLV {
+            t: 0x0e,
+            description: "MaxConcatenatedBurst".to_string(),
+            data_type: DATATYPE::USHORT,
+            tlv: TLV { t: 0x0e, l: 0, v: Vec::new(), sub_tlvs: Vec::new() },
+            sub_tlvs: HashMap::new(),
+        mib: None,
+    };
+    tlv.sub_tlvs.insert(sub_tlv.t, sub_tlv);
+    let mut sub_tlv = DOCSIS4TLV {
+            t: 0x0f,
+            description: "SchedulingType".to_string(),
+            data_type: DATATYPE::UCHAR,
+            tlv: TLV { t: 0x0f, l: 0, v: Vec::new(), sub_tlvs: Vec::new() },
+            sub_tlvs: HashMap::new(),
+        mib: None,
+    };
+    tlv.sub_tlvs.insert(sub_tlv.t, sub_tlv);
+    let mut sub_tlv = DOCSIS4TLV {
+            t: 0x10,
+            description: "RequestOrTxPolicy".to_string(),
+            data_type: DATATYPE::HEXSTR,
+            tlv: TLV { t: 0x10, l: 0, v: Vec::new(), sub_tlvs: Vec::new() },
+            sub_tlvs: HashMap::new(),
+        mib: None,
+    };
+    tlv.sub_tlvs.insert(sub_tlv.t, sub_tlv);
+    let mut sub_tlv = DOCSIS4TLV {
+            t: 0x11,
+            description: "NominalPollInterval".to_string(),
+            data_type: DATATYPE::UINT,
+            tlv: TLV { t: 0x11, l: 0, v: Vec::new(), sub_tlvs: Vec::new() },
+            sub_tlvs: HashMap::new(),
+        mib: None,
+    };
+    tlv.sub_tlvs.insert(sub_tlv.t, sub_tlv);
+    let mut sub_tlv = DOCSIS4TLV {
+            t: 0x12,
+            description: "ToleratedPollJitter".to_string(),
+            data_type: DATATYPE::UINT,
+            tlv: TLV { t: 0x12, l: 0, v: Vec::new(), sub_tlvs: Vec::new() },
+            sub_tlvs: HashMap::new(),
+        mib: None,
+    };
+    tlv.sub_tlvs.insert(sub_tlv.t, sub_tlv);
+    let mut sub_tlv = DOCSIS4TLV {
+            t: 0x13,
+            description: "UnsolicitedGrantSize".to_string(),
+            data_type: DATATYPE::USHORT,
+            tlv: TLV { t: 0x13, l: 0, v: Vec::new(), sub_tlvs: Vec::new() },
+            sub_tlvs: HashMap::new(),
+        mib: None,
+    };
+    tlv.sub_tlvs.insert(sub_tlv.t, sub_tlv);
+    let mut sub_tlv = DOCSIS4TLV {
+            t: 0x14,
+            description: "NominalGrantInterval".to_string(),
+            data_type: DATATYPE::UINT,
+            tlv: TLV { t: 0x14, l: 0, v: Vec::new(), sub_tlvs: Vec::new() },
+            sub_tlvs: HashMap::new(),
+        mib: None,
+    };
+    tlv.sub_tlvs.insert(sub_tlv.t, sub_tlv);
+    let mut sub_tlv = DOCSIS4TLV {
+            t: 0x15,
+            description: "ToleratedGrantJitter".to_string(),
+            data_type: DATATYPE::UINT,
+            tlv: TLV { t: 0x15, l: 0, v: Vec::new(), sub_tlvs: Vec::new() },
+            sub_tlvs: HashMap::new(),
+        mib: None,
+    };
+    tlv.sub_tlvs.insert(sub_tlv.t, sub_tlv);
+    let mut sub_tlv = DOCSIS4TLV {
+            t: 0x16,
+            description: "GrantsPerInterval".to_string(),
+            data_type: DATATYPE::UCHAR,
+            tlv: TLV { t: 0x16, l: 0, v: Vec::new(), sub_tlvs: Vec::new() },
             sub_tlvs: HashMap::new(),
         mib: None,
     };
@@ -357,65 +440,8 @@ pub(crate) fn d4_defs() -> HashMap<u8, DOCSIS4TLV> {
     d4_defs
 }
 
-
-
-
 /*
 
-
-DocsisTlvs["24"]["subTlvs"]["14"] = {}
-DocsisTlvs["24"]["subTlvs"]["14"]["description"] = "MaxConcatenatedBurst"
-DocsisTlvs["24"]["subTlvs"]["14"]["hex"] = "0e"
-DocsisTlvs["24"]["subTlvs"]["14"]["datatype"] = "ushort"
-DocsisTlvs["24"]["subTlvs"]["14"]["subTlvs"] = {}
-
-DocsisTlvs["24"]["subTlvs"]["15"] = {}
-DocsisTlvs["24"]["subTlvs"]["15"]["description"] = "SchedulingType"
-DocsisTlvs["24"]["subTlvs"]["15"]["hex"] = "0f"
-DocsisTlvs["24"]["subTlvs"]["15"]["datatype"] = "uchar"
-DocsisTlvs["24"]["subTlvs"]["15"]["subTlvs"] = {}
-
-DocsisTlvs["24"]["subTlvs"]["16"] = {}
-DocsisTlvs["24"]["subTlvs"]["16"]["description"] = "RequestOrTxPolicy"
-DocsisTlvs["24"]["subTlvs"]["16"]["hex"] = "10"
-DocsisTlvs["24"]["subTlvs"]["16"]["datatype"] = "hexstr"
-DocsisTlvs["24"]["subTlvs"]["16"]["subTlvs"] = {}
-
-DocsisTlvs["24"]["subTlvs"]["17"] = {}
-DocsisTlvs["24"]["subTlvs"]["17"]["description"] = "NominalPollInterval"
-DocsisTlvs["24"]["subTlvs"]["17"]["hex"] = "11"
-DocsisTlvs["24"]["subTlvs"]["17"]["datatype"] = "uint"
-DocsisTlvs["24"]["subTlvs"]["17"]["subTlvs"] = {}
-
-DocsisTlvs["24"]["subTlvs"]["18"] = {}
-DocsisTlvs["24"]["subTlvs"]["18"]["description"] = "ToleratedPollJitter"
-DocsisTlvs["24"]["subTlvs"]["18"]["hex"] = "12"
-DocsisTlvs["24"]["subTlvs"]["18"]["datatype"] = "uint"
-DocsisTlvs["24"]["subTlvs"]["18"]["subTlvs"] = {}
-
-DocsisTlvs["24"]["subTlvs"]["19"] = {}
-DocsisTlvs["24"]["subTlvs"]["19"]["description"] = "UnsolicitedGrantSize"
-DocsisTlvs["24"]["subTlvs"]["19"]["hex"] = "13"
-DocsisTlvs["24"]["subTlvs"]["19"]["datatype"] = "ushort"
-DocsisTlvs["24"]["subTlvs"]["19"]["subTlvs"] = {}
-
-DocsisTlvs["24"]["subTlvs"]["20"] = {}
-DocsisTlvs["24"]["subTlvs"]["20"]["description"] = "NominalGrantInterval"
-DocsisTlvs["24"]["subTlvs"]["20"]["hex"] = "14"
-DocsisTlvs["24"]["subTlvs"]["20"]["datatype"] = "uint"
-DocsisTlvs["24"]["subTlvs"]["20"]["subTlvs"] = {}
-
-DocsisTlvs["24"]["subTlvs"]["21"] = {}
-DocsisTlvs["24"]["subTlvs"]["21"]["description"] = "ToleratedGrantJitter"
-DocsisTlvs["24"]["subTlvs"]["21"]["hex"] = "15"
-DocsisTlvs["24"]["subTlvs"]["21"]["datatype"] = "uint"
-DocsisTlvs["24"]["subTlvs"]["21"]["subTlvs"] = {}
-
-DocsisTlvs["24"]["subTlvs"]["22"] = {}
-DocsisTlvs["24"]["subTlvs"]["22"]["description"] = "GrantsPerInterval"
-DocsisTlvs["24"]["subTlvs"]["22"]["hex"] = "16"
-DocsisTlvs["24"]["subTlvs"]["22"]["datatype"] = "uchar"
-DocsisTlvs["24"]["subTlvs"]["22"]["subTlvs"] = {}
 
 DocsisTlvs["24"]["subTlvs"]["23"] = {}
 DocsisTlvs["24"]["subTlvs"]["23"]["description"] = "IpTosOverwrite"

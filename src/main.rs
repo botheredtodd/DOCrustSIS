@@ -1,14 +1,14 @@
 mod docsis;
-mod TLV;
+mod tlv;
 mod d4;
-mod MIB;
+mod mib;
 
-use std::{env, fmt};
+use std::{env};
 use getopts::Options;
 use std::fs::File;
 use std::path::Path;
 use std::io::prelude::*;
-use std::io;
+// use std::io;
 use directories::UserDirs;
 
 use crate::d4::{d4_defs, DATATYPE};
@@ -23,10 +23,10 @@ fn print_usage(program: &str, opts: Options) {
 
 fn main() {
     let filename = format!("{}/.mibs.json", UserDirs::new().unwrap().home_dir().to_str().unwrap());
-    let mut miblist = MIB::MIBList::new();
+    let mut miblist = mib::MIBList::new();
     if Path::new(filename.as_str()).exists() {
         println!("Loading MIBs from: {}", filename);
-        let miblist = MIB::MIBList::from_file(filename.as_str());
+        miblist = mib::MIBList::from_file(filename.as_str());
     }
 
     let args: Vec<String> = env::args().collect();
@@ -50,7 +50,7 @@ fn main() {
         println!("You must provide a file to parse");
         std::process::exit(1);
     };
-    let mut tlv_list = TLV::TLVList { tlvs: Vec::new() };
+    let mut tlv_list = tlv::TLVList { tlvs: Vec::new() };
     let d4d = d4_defs();
     println!("File: {}", filename);
     let mut f = File::open(filename).unwrap();
@@ -63,11 +63,11 @@ fn main() {
         let t = buffer[i];
         let l = buffer[i + 1];
         let mut v = Vec::new();
-        let mut sub :Vec<TLV::TLV> = Vec::new();
+        let mut sub :Vec<tlv::TLV> = Vec::new();
         for j in 0..l {
             v.push(buffer[i + 2 + j as usize]);
         }
-        let tlv = TLV::TLV { t, l, v, sub_tlvs: sub};
+        let tlv = tlv::TLV { t, l, v, sub_tlvs: sub};
         tlv_list.tlvs.push(tlv);
         i += 2 + l as usize;
     }
@@ -75,20 +75,20 @@ fn main() {
         let this_d4 = docsis::decode(tlv, d4d.clone());
         if this_d4.is_ok() {
             let this_d4_unwrapped = this_d4.unwrap();
-            match this_d4_unwrapped.dataType {
-                d4::DATATYPE::UCHAR => {
+            match this_d4_unwrapped.data_type {
+                DATATYPE::UCHAR => {
                     print!("TLV: {}: {}  ", this_d4_unwrapped.t, this_d4_unwrapped.description);
                     println!("Decoded: {}", this_d4_unwrapped.get_int_value().unwrap());
                 },
-                d4::DATATYPE::UINT => {
+                DATATYPE::UINT => {
                     print!("TLV: {}: {}  ", this_d4_unwrapped.t, this_d4_unwrapped.description);
                     println!("Decoded: {}", this_d4_unwrapped.get_int_value().unwrap());
                 },
-                d4::DATATYPE::STRING => {
+                DATATYPE::STRING => {
                     print!("TLV: {}: {}  ", this_d4_unwrapped.t, this_d4_unwrapped.description);
                     println!("Decoded: {}", this_d4_unwrapped.get_string_value().unwrap());
                 }
-                d4::DATATYPE::MIB => {
+                DATATYPE::MIB => {
                     print!("TLV: {}: {}  ", this_d4_unwrapped.t, this_d4_unwrapped.description);
                     // println!("Decoded: {}", this_d4_unwrapped.get_mib_value().unwrap());
                     if this_d4_unwrapped.mib.is_none() {
@@ -104,12 +104,13 @@ fn main() {
                         }
                     }
                 }
-                d4::DATATYPE::AGGREGATE => {
+                DATATYPE::AGGREGATE => {
                     println!("TLV: {}: {}", this_d4_unwrapped.t, this_d4_unwrapped.description);
-                    for (tag, stlv) in this_d4_unwrapped.sub_tlvs {
+                    for (_, stlv) in this_d4_unwrapped.sub_tlvs {
                     if stlv.tlv.v != vec![] {
                         print!("\tSub-TLV: {}: {} (bytes: {:?})  ", stlv.t, stlv.description, stlv.tlv.v);
-                        match stlv.dataType {
+                        match stlv.data_type {
+
                             DATATYPE::UCHAR => {
                                 println!("Decoded: {}", stlv.get_int_value().unwrap());
                             },

@@ -19,16 +19,16 @@ pub(crate) struct MIB {
 
 impl MIB{
     pub(crate) fn from_bytes(bytes: Vec<u8>) -> MIB {
-        let mut oidDataTypes :HashMap<u8, String> = HashMap::new();
-        oidDataTypes.insert(0x01, "Boolean".to_string());
-        oidDataTypes.insert(0x02, "Integer32".to_string());
-        oidDataTypes.insert(0x03, "BitString".to_string());
-        oidDataTypes.insert(0x04, "OctetString".to_string());
-        oidDataTypes.insert(0x05, "Null".to_string());
-        oidDataTypes.insert(0x06, "ObjectIdentifier".to_string());
-        oidDataTypes.insert(64, "IPAddress".to_string());
-        oidDataTypes.insert(66, "Counter32".to_string());
-        oidDataTypes.insert(103, "OctetString".to_string());
+        let mut oid_data_types :HashMap<u8, String> = HashMap::new();
+        oid_data_types.insert(0x01, "Boolean".to_string());
+        oid_data_types.insert(0x02, "Integer32".to_string());
+        oid_data_types.insert(0x03, "BitString".to_string());
+        oid_data_types.insert(0x04, "OctetString".to_string());
+        oid_data_types.insert(0x05, "Null".to_string());
+        oid_data_types.insert(0x06, "ObjectIdentifier".to_string());
+        oid_data_types.insert(64, "IPAddress".to_string());
+        oid_data_types.insert(66, "Counter32".to_string());
+        oid_data_types.insert(103, "OctetString".to_string());
 
         let mut mib = MIB {
             name: "".to_string(),
@@ -81,8 +81,8 @@ impl MIB{
                 i += 1;
                 let data_type = bytes[i];
 
-                if oidDataTypes.contains_key(&data_type) {
-                    mib.datatype = oidDataTypes.get(&data_type).unwrap().to_string();
+                if oid_data_types.contains_key(&data_type) {
+                    mib.datatype = oid_data_types.get(&data_type).unwrap().to_string();
                 }
                 else {
                     mib.datatype = format!("Unknown: {}", data_type);
