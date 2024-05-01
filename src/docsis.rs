@@ -4,6 +4,7 @@ use std::fmt;
 use crate::d4::d4_defs;
 use crate::d4::DOCSIS4TLV;
 use crate::d4::DATATYPE;
+use crate::MIB::MIB;
 pub(crate) fn decode(tlv: TLV, d4: HashMap<u8, DOCSIS4TLV>) -> Result<DOCSIS4TLV, String> {
 
 
@@ -25,6 +26,10 @@ pub(crate) fn decode(tlv: TLV, d4: HashMap<u8, DOCSIS4TLV>) -> Result<DOCSIS4TLV
                     i += 2 + tlv.v[i + 1] as usize;
                 }
 
+            },
+            DATATYPE::MIB => {
+                let mb = MIB::from_bytes(tlv.v.clone());
+                ret.mib = Some(mb);
             },
             _ => {}
         }

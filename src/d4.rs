@@ -23,8 +23,20 @@ pub(crate) struct DOCSIS4TLV {
     pub(crate) dataType: DATATYPE,
     pub(crate) tlv: TLV,
     pub(crate) sub_tlvs: HashMap<u8, DOCSIS4TLV>,
+    pub(crate) mib: Option<MIB>,
 }
-
+impl Default for DOCSIS4TLV {
+    fn default() -> DOCSIS4TLV {
+        DOCSIS4TLV {
+            t: 0,
+            description: "".to_string(),
+            dataType: DATATYPE::UCHAR,
+            tlv: TLV { t: 0, l: 0, v: Vec::new(), sub_tlvs: Vec::new() },
+            sub_tlvs: HashMap::new(),
+            mib: None,
+        }
+    }
+}
 
 
 impl DOCSIS4TLV {
@@ -190,6 +202,7 @@ pub(crate) fn d4_defs() -> HashMap<u8, DOCSIS4TLV> {
         dataType: DATATYPE::UINT,
         tlv: TLV { t: 0x01, l: 0, v: Vec::new(), sub_tlvs: Vec::new() },
         sub_tlvs: HashMap::new(),
+        mib: None,
     };
     d4_defs.insert(tlv.t, tlv);
     let mut tlv = DOCSIS4TLV {
@@ -198,6 +211,7 @@ pub(crate) fn d4_defs() -> HashMap<u8, DOCSIS4TLV> {
         dataType: DATATYPE::UCHAR,
         tlv: TLV { t: 0x02, l: 0, v: Vec::new(), sub_tlvs: Vec::new() },
         sub_tlvs: HashMap::new(),
+        mib: None,
     };
     d4_defs.insert(tlv.t, tlv);
     let mut tlv = DOCSIS4TLV {
@@ -206,6 +220,7 @@ pub(crate) fn d4_defs() -> HashMap<u8, DOCSIS4TLV> {
         dataType: DATATYPE::UCHAR,
         tlv: TLV { t: 0x03, l: 0, v: Vec::new(), sub_tlvs: Vec::new() },
         sub_tlvs: HashMap::new(),
+        mib: None,
     };
     d4_defs.insert(tlv.t, tlv);
 
@@ -215,6 +230,7 @@ pub(crate) fn d4_defs() -> HashMap<u8, DOCSIS4TLV> {
         dataType: DATATYPE::MIB,
         tlv: TLV { t: 0x0b, l: 0, v: Vec::new(), sub_tlvs: Vec::new() },
         sub_tlvs: HashMap::new(),
+        mib: None,
     };
     d4_defs.insert(tlv.t, tlv);
 
@@ -225,45 +241,51 @@ pub(crate) fn d4_defs() -> HashMap<u8, DOCSIS4TLV> {
         dataType: DATATYPE::AGGREGATE,
         tlv: TLV { t: 0x18, l: 0, v: Vec::new(), sub_tlvs: Vec::new() },
         sub_tlvs: HashMap::new(),
+        mib: None,
         };
     let mut sub_tlv = DOCSIS4TLV {
-            t: 0x01,
-            description: "UsServiceFlowRef".to_string(),
-            dataType: DATATYPE::USHORT,
-            tlv: TLV { t: 0x01, l: 0, v: Vec::new(), sub_tlvs: Vec::new() },
-            sub_tlvs: HashMap::new(),
+        t: 0x01,
+        description: "UsServiceFlowRef".to_string(),
+        dataType: DATATYPE::USHORT,
+        tlv: TLV { t: 0x01, l: 0, v: Vec::new(), sub_tlvs: Vec::new() },
+        sub_tlvs: HashMap::new(),
+        mib: None,
     };
     tlv.sub_tlvs.insert(sub_tlv.t, sub_tlv);
     let mut sub_tlv = DOCSIS4TLV {
-            t: 0x02,
-            description: "UsServiceFlowId".to_string(),
-            dataType: DATATYPE::UINT,
-            tlv: TLV { t: 0x02, l: 0, v: Vec::new(), sub_tlvs: Vec::new() },
-            sub_tlvs: HashMap::new(),
+        t: 0x02,
+        description: "UsServiceFlowId".to_string(),
+        dataType: DATATYPE::UINT,
+        tlv: TLV { t: 0x02, l: 0, v: Vec::new(), sub_tlvs: Vec::new() },
+        sub_tlvs: HashMap::new(),
+        mib: None,
     };
     tlv.sub_tlvs.insert(sub_tlv.t, sub_tlv);
     let mut sub_tlv = DOCSIS4TLV {
-            t: 0x03,
-            description: "ServiceIdentifier".to_string(),
-            dataType: DATATYPE::USHORT,
-            tlv: TLV { t: 0x03, l: 0, v: Vec::new(), sub_tlvs: Vec::new() },
-            sub_tlvs: HashMap::new(),
+        t: 0x03,
+        description: "ServiceIdentifier".to_string(),
+        dataType: DATATYPE::USHORT,
+        tlv: TLV { t: 0x03, l: 0, v: Vec::new(), sub_tlvs: Vec::new() },
+        sub_tlvs: HashMap::new(),
+        mib: None,
     };
     tlv.sub_tlvs.insert(sub_tlv.t, sub_tlv);
     let mut sub_tlv = DOCSIS4TLV {
-            t: 0x04,
-            description: "ServiceClassName".to_string(),
-            dataType: DATATYPE::STRINGZERO,
-            tlv: TLV { t: 0x04, l: 0, v: Vec::new(), sub_tlvs: Vec::new() },
-            sub_tlvs: HashMap::new(),
+        t: 0x04,
+        description: "ServiceClassName".to_string(),
+        dataType: DATATYPE::STRINGZERO,
+        tlv: TLV { t: 0x04, l: 0, v: Vec::new(), sub_tlvs: Vec::new() },
+        sub_tlvs: HashMap::new(),
+        mib: None,
     };
     tlv.sub_tlvs.insert(sub_tlv.t, sub_tlv);
     let mut sub_tlv = DOCSIS4TLV {
-            t: 0x06,
-            description: "QosParamSetType".to_string(),
-            dataType: DATATYPE::UCHAR,
-            tlv: TLV { t: 0x06, l: 0, v: Vec::new(), sub_tlvs: Vec::new() },
-            sub_tlvs: HashMap::new(),
+        t: 0x06,
+        description: "QosParamSetType".to_string(),
+        dataType: DATATYPE::UCHAR,
+        tlv: TLV { t: 0x06, l: 0, v: Vec::new(), sub_tlvs: Vec::new() },
+        sub_tlvs: HashMap::new(),
+        mib: None,
     };
     tlv.sub_tlvs.insert(sub_tlv.t, sub_tlv);
     let mut sub_tlv = DOCSIS4TLV {
@@ -272,6 +294,7 @@ pub(crate) fn d4_defs() -> HashMap<u8, DOCSIS4TLV> {
             dataType: DATATYPE::UCHAR,
             tlv: TLV { t: 0x07, l: 0, v: Vec::new(), sub_tlvs: Vec::new() },
             sub_tlvs: HashMap::new(),
+        mib: None,
     };
     tlv.sub_tlvs.insert(sub_tlv.t, sub_tlv);
     let mut sub_tlv = DOCSIS4TLV {
@@ -280,6 +303,7 @@ pub(crate) fn d4_defs() -> HashMap<u8, DOCSIS4TLV> {
             dataType: DATATYPE::UINT,
             tlv: TLV { t: 0x08, l: 0, v: Vec::new(), sub_tlvs: Vec::new() },
             sub_tlvs: HashMap::new(),
+        mib: None,
     };
     tlv.sub_tlvs.insert(sub_tlv.t, sub_tlv);
     let mut sub_tlv = DOCSIS4TLV {
@@ -288,6 +312,7 @@ pub(crate) fn d4_defs() -> HashMap<u8, DOCSIS4TLV> {
             dataType: DATATYPE::UINT,
             tlv: TLV { t: 0x09, l: 0, v: Vec::new(), sub_tlvs: Vec::new() },
             sub_tlvs: HashMap::new(),
+        mib: None,
     };
     tlv.sub_tlvs.insert(sub_tlv.t, sub_tlv);
     let mut sub_tlv = DOCSIS4TLV {
@@ -296,6 +321,7 @@ pub(crate) fn d4_defs() -> HashMap<u8, DOCSIS4TLV> {
             dataType: DATATYPE::UINT,
             tlv: TLV { t: 0x0a, l: 0, v: Vec::new(), sub_tlvs: Vec::new() },
             sub_tlvs: HashMap::new(),
+        mib: None,
     };
     tlv.sub_tlvs.insert(sub_tlv.t, sub_tlv);
     let mut sub_tlv = DOCSIS4TLV {
@@ -304,6 +330,25 @@ pub(crate) fn d4_defs() -> HashMap<u8, DOCSIS4TLV> {
             dataType: DATATYPE::USHORT,
             tlv: TLV { t: 0x0b, l: 0, v: Vec::new(), sub_tlvs: Vec::new() },
             sub_tlvs: HashMap::new(),
+        mib: None,
+    };
+    tlv.sub_tlvs.insert(sub_tlv.t, sub_tlv);
+    let mut sub_tlv = DOCSIS4TLV {
+            t: 0x0c,
+            description: "ActQosParamsTimeout".to_string(),
+            dataType: DATATYPE::USHORT,
+            tlv: TLV { t: 0x0c, l: 0, v: Vec::new(), sub_tlvs: Vec::new() },
+            sub_tlvs: HashMap::new(),
+        mib: None,
+    };
+    tlv.sub_tlvs.insert(sub_tlv.t, sub_tlv);
+    let mut sub_tlv = DOCSIS4TLV {
+            t: 0x0d,
+            description: "AdmQosParamsTimeout".to_string(),
+            dataType: DATATYPE::USHORT,
+            tlv: TLV { t: 0x0d, l: 0, v: Vec::new(), sub_tlvs: Vec::new() },
+            sub_tlvs: HashMap::new(),
+        mib: None,
     };
     tlv.sub_tlvs.insert(sub_tlv.t, sub_tlv);
 
@@ -317,18 +362,6 @@ pub(crate) fn d4_defs() -> HashMap<u8, DOCSIS4TLV> {
 
 /*
 
-
-DocsisTlvs["24"]["subTlvs"]["12"] = {}
-DocsisTlvs["24"]["subTlvs"]["12"]["description"] = "ActQosParamsTimeout"
-DocsisTlvs["24"]["subTlvs"]["12"]["hex"] = "0c"
-DocsisTlvs["24"]["subTlvs"]["12"]["datatype"] = "ushort"
-DocsisTlvs["24"]["subTlvs"]["12"]["subTlvs"] = {}
-
-DocsisTlvs["24"]["subTlvs"]["13"] = {}
-DocsisTlvs["24"]["subTlvs"]["13"]["description"] = "AdmQosParamsTimeout"
-DocsisTlvs["24"]["subTlvs"]["13"]["hex"] = "0d"
-DocsisTlvs["24"]["subTlvs"]["13"]["datatype"] = "ushort"
-DocsisTlvs["24"]["subTlvs"]["13"]["subTlvs"] = {}
 
 DocsisTlvs["24"]["subTlvs"]["14"] = {}
 DocsisTlvs["24"]["subTlvs"]["14"]["description"] = "MaxConcatenatedBurst"

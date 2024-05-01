@@ -5,22 +5,38 @@ use std::fs::File;
 use std::io::Read;
 use crate::d4::DATATYPE;
 
+#[derive(Clone)]
 pub(crate) struct MIB {
     pub(crate) name: String,
     pub(crate) description: String,
     pub(crate) oid: String,
     pub(crate) value: Vec<u8>,
-    pub(crate) datatype: String
+    pub(crate) datatype: String,
+    pub(crate) index: u8,
 }
+
+
 
 impl MIB{
     pub(crate) fn from_bytes(bytes: Vec<u8>) -> MIB {
+        let mut oidDataTypes :HashMap<u8, String> = HashMap::new();
+        oidDataTypes.insert(0x01, "Boolean".to_string());
+        oidDataTypes.insert(0x02, "Integer32".to_string());
+        oidDataTypes.insert(0x03, "BitString".to_string());
+        oidDataTypes.insert(0x04, "OctetString".to_string());
+        oidDataTypes.insert(0x05, "Null".to_string());
+        oidDataTypes.insert(0x06, "ObjectIdentifier".to_string());
+        oidDataTypes.insert(64, "IPAddress".to_string());
+        oidDataTypes.insert(66, "Counter32".to_string());
+        oidDataTypes.insert(103, "OctetString".to_string());
+
         let mut mib = MIB {
             name: "".to_string(),
             description: "".to_string(),
             oid: "".to_string(),
             value: Vec::new(),
             datatype: "".to_string(),
+            index: 0,
         };
         if bytes.len() < 2 {
             return mib;
@@ -40,8 +56,9 @@ impl MIB{
         else {
             i += 1;
         }
-        let mut oid_length = bytes[i] * 2;
         i += 1;
+        let mut oid_length = bytes[i];
+
         i += 1;
         let mut x = bytes[i] / 40;
         let mut y = bytes[i] % 40;
@@ -59,6 +76,21 @@ impl MIB{
             oid_length -= 1;
             if oid_length == 0 {
                 mib.oid = oid_string.clone();
+                // date type, something, length, actual data
+                mib.index = bytes[i];
+                i += 1;
+                let data_type = bytes[i];
+
+                if oidDataTypes.contains_key(&data_type) {
+                    mib.datatype = oidDataTypes.get(&data_type).unwrap().to_string();
+                }
+                else {
+                    mib.datatype = format!("Unknown: {}", data_type);
+                }
+                i += 1;
+                let length = bytes[i];
+                i += 1;
+
                 mib.value = bytes[i..].to_vec();
                 // println!("OID: {}", oid_string);
                 return mib;
@@ -85,6 +117,28 @@ impl MIB{
         }
         println!("OID with garbage: {}", oid_string);
         mib
+    }
+    pub(crate) fn translate_value(&self) -> String {
+        let mut retval = String::new();
+        if self.datatype == "OctetString" {
+                for i in 0..self.value.len() {
+                    retval.push_str(format!("{}", self.value[i as usize] as char).as_str());
+                }
+        }
+        else if self.datatype == "Integer32" {
+            let mut val = 0;
+            for b in &self.value {
+                val = (val << 8) | *b as u32;
+            }
+            retval = format!("{}", val);
+        }
+            else if self.datatype == "IPAddress" {
+            retval = format!("{}.{}.{}.{}", self.value[0], self.value[1], self.value[2], self.value[3]);
+            }
+        else {
+            retval = format!("{:?}", self.value);
+        }
+        retval
     }
 }
 
@@ -126,6 +180,7 @@ impl MIBList {
                 oid: key.clone(),
                 datatype: "".to_string(),
                 value: Vec::new(),
+                index: 0,
             };
             for (k, v) in value.as_object().unwrap() {
                 match k.as_str() {
