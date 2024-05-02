@@ -28,6 +28,7 @@ pub(crate) enum DATATYPE {
     LENZERO,
     DUAL_QTAG,
     ENCODE_IP,
+    ENCODE_MAC,
 
 
 }
@@ -129,6 +130,12 @@ impl PartialEq for DATATYPE {
                     _ => false,
                 }
             },
+            DATATYPE::ENCODE_MAC => {
+                match other {
+                    DATATYPE::ENCODE_MAC => true,
+                    _ => false,
+                }
+            },
         }
     }
 }
@@ -173,6 +180,9 @@ impl DOCSIS4TLV {
                 Err("Not a number".to_string())
             },
             DATATYPE::ENCODE_IP => {
+                Err("Not a number".to_string())
+            },
+            DATATYPE::ENCODE_MAC => {
                 Err("Not a number".to_string())
             },
             DATATYPE::AGGREGATE => {
@@ -244,6 +254,9 @@ impl DOCSIS4TLV {
             DATATYPE::ENCODE_IP => {
                 Err("Not a number".to_string())
             },
+            DATATYPE::ENCODE_MAC => {
+                Err("Not a number".to_string())
+            },
             DATATYPE::STRING => {
                 Err("Not a number".to_string())
             },
@@ -294,10 +307,23 @@ impl DOCSIS4TLV {
             },
             DATATYPE::ENCODE_IP => {
                 let mut s = String::new();
+                if self.tlv.l > 4 {
+                    println!("IPv6 is still being worked on");
+                }
                 for i in 0..self.tlv.l {
                     s.push_str(format!("{}", self.tlv.v[i as usize]).as_str());
                     if i < self.tlv.l - 1 {
                         s.push_str(".");
+                    }
+                }
+                Ok(s)
+            },
+            DATATYPE::ENCODE_MAC => {
+                let mut s = String::new();
+                for i in 0..self.tlv.l {
+                    s.push_str(format!("{}", self.tlv.v[i as usize]).as_str());
+                    if i % 2 == 0 && i < self.tlv.l - 1{
+                        s.push_str(":");
                     }
                 }
                 Ok(s)
@@ -385,6 +411,10 @@ impl Display for DOCSIS4TLV {
                     s.push_str(format!("Decoded: {}", self.get_string_value().unwrap()).as_str());
                 }
                 DATATYPE::ENCODE_IP => {
+                    s.push_str(format!("TLV: {}: {} {:?} ", self.t, self.description, self.tlv.v).as_str());
+                    s.push_str(format!("Decoded: {}", self.get_string_value().unwrap()).as_str());
+                }
+                DATATYPE::ENCODE_MAC => {
                     s.push_str(format!("TLV: {}: {} {:?} ", self.t, self.description, self.tlv.v).as_str());
                     s.push_str(format!("Decoded: {}", self.get_string_value().unwrap()).as_str());
                 }

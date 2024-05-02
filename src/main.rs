@@ -80,7 +80,7 @@ fn main() {
         let this_d4 = docsis::decode(tlv.clone(), d4d.clone());
         if this_d4.is_ok() {
             let this_d4_unwrapped = this_d4.unwrap();
-            // println!("{}", this_d4_unwrapped);
+            println!("{}", this_d4_unwrapped);
         }
         else {
             println!("Error decoding TLV: {}", tlv.t);
