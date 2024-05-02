@@ -2,8 +2,18 @@
 
 use std::cmp::PartialEq;
 use std::collections::HashMap;
+use std::fmt::Display;
+use std::path::Path;
+use directories::UserDirs;
 use crate::tlv::TLV;
 use crate::mib::MIB;
+use crate::flows::upstreams;
+use crate::drop_classifiers::upstream_drop_classifiers;
+use crate::mib;
+use crate::vendor_specific::docsis_vendor_specific;
+use crate::erouter::erouter;
+use crate::packet_classifiers::packet_classifiers;
+
 #[derive(Clone)]
 pub(crate) enum DATATYPE {
     UCHAR,
@@ -14,6 +24,10 @@ pub(crate) enum DATATYPE {
     AGGREGATE,
     MIB,
     HEXSTR,
+    MD5,
+    LENZERO,
+    DUAL_QTAG,
+    ENCODE_IP,
 
 
 }
@@ -40,8 +54,90 @@ impl Default for DOCSIS4TLV {
 }
 
 
+impl PartialEq for DATATYPE {
+    fn eq(&self, other: &Self) -> bool {
+        match self {
+            DATATYPE::UCHAR => {
+                match other {
+                    DATATYPE::UCHAR => true,
+                    _ => false,
+                }
+            },
+            DATATYPE::UINT => {
+                match other {
+                    DATATYPE::UINT => true,
+                    _ => false,
+                }
+            },
+            DATATYPE::USHORT => {
+                match other {
+                    DATATYPE::USHORT => true,
+                    _ => false,
+                }
+            },
+            DATATYPE::STRING => {
+                match other {
+                    DATATYPE::STRING => true,
+                    _ => false,
+                }
+            },
+            DATATYPE::STRINGZERO => {
+                match other {
+                    DATATYPE::STRINGZERO => true,
+                    _ => false,
+                }
+            },
+            DATATYPE::AGGREGATE => {
+                match other {
+                    DATATYPE::AGGREGATE => true,
+                    _ => false,
+                }
+            },
+            DATATYPE::MIB => {
+                match other {
+                    DATATYPE::MIB => true,
+                    _ => false,
+                }
+            },
+            DATATYPE::HEXSTR => {
+                match other {
+                    DATATYPE::HEXSTR => true,
+                    _ => false,
+                }
+            },
+            DATATYPE::MD5 => {
+                match other {
+                    DATATYPE::MD5 => true,
+                    _ => false,
+                }
+            },
+            DATATYPE::LENZERO => {
+                match other {
+                    DATATYPE::LENZERO => true,
+                    _ => false,
+                }
+            },
+            DATATYPE::DUAL_QTAG => {
+                match other {
+                    DATATYPE::DUAL_QTAG => true,
+                    _ => false,
+                }
+            },
+            DATATYPE::ENCODE_IP => {
+                match other {
+                    DATATYPE::ENCODE_IP => true,
+                    _ => false,
+                }
+            },
+        }
+    }
+}
+
 impl DOCSIS4TLV {
-    pub(crate) fn get_int_value(self) -> Result<u32, String>{
+    pub(crate) fn display_tag(&self, parent: &str) -> String {
+        format!("{}.{}", parent, self.t,)
+    }
+    pub(crate) fn get_int_value(&self) -> Result<u32, String>{
         match self.data_type {
             DATATYPE::UCHAR => {
                 let mut v = 0;
@@ -73,18 +169,28 @@ impl DOCSIS4TLV {
             DATATYPE::STRINGZERO => {
                 Err("Not a number".to_string())
             },
+            DATATYPE::HEXSTR => {
+                Err("Not a number".to_string())
+            },
+            DATATYPE::ENCODE_IP => {
+                Err("Not a number".to_string())
+            },
             DATATYPE::AGGREGATE => {
                 Err("Sub TLVs not working yet".to_string())
             },
             DATATYPE::MIB => {
-                let _ = MIB::from_bytes(self.tlv.v);
+                // let _ = MIB::from_bytes(self.tlv.v);
                 Err("Not yet supported".to_string())
             }
+            DATATYPE::MD5 => {
+                Err("Not a number".to_string())
+            },
             _ => {
                 Err("Not yet supported".to_string())
             }
         }
     }
+
     pub(crate) fn set_int_value(&mut self, v: i32) -> Result<i32, String> {
         match self.data_type{
             DATATYPE::UCHAR => {
@@ -132,7 +238,16 @@ impl DOCSIS4TLV {
                 self.tlv.l = l;
                 Ok(v)
             },
+            DATATYPE::MD5 => {
+                Err("Not a number".to_string())
+            },
+            DATATYPE::ENCODE_IP => {
+                Err("Not a number".to_string())
+            },
             DATATYPE::STRING => {
+                Err("Not a number".to_string())
+            },
+            DATATYPE::HEXSTR => {
                 Err("Not a number".to_string())
             },
             DATATYPE::STRINGZERO => {
@@ -147,7 +262,7 @@ impl DOCSIS4TLV {
         }
 
     }
-    pub(crate) fn get_string_value(self) -> Result<String, String> {
+    pub(crate) fn get_string_value(&self) -> Result<String, String> {
         match self.data_type {
             DATATYPE::UCHAR => {
                 let mut s = String::new();
@@ -170,7 +285,31 @@ impl DOCSIS4TLV {
                 }
                 Ok(s)
             },
+            DATATYPE::MD5 => {
+                let mut s = String::new();
+                for i in 0..self.tlv.l {
+                    s.push_str(format!("{:02x}", self.tlv.v[i as usize]).as_str());
+                }
+                Ok(s)
+            },
+            DATATYPE::ENCODE_IP => {
+                let mut s = String::new();
+                for i in 0..self.tlv.l {
+                    s.push_str(format!("{}", self.tlv.v[i as usize]).as_str());
+                    if i < self.tlv.l - 1 {
+                        s.push_str(".");
+                    }
+                }
+                Ok(s)
+            },
             DATATYPE::STRING => {
+                let mut s = String::new();
+                for i in 0..self.tlv.l {
+                    s.push_str(format!("{}", self.tlv.v[i as usize] as char).as_str());
+                }
+                Ok(s)
+            },
+            DATATYPE::HEXSTR => {
                 let mut s = String::new();
                 for i in 0..self.tlv.l {
                     s.push_str(format!("{}", self.tlv.v[i as usize] as char).as_str());
@@ -192,8 +331,96 @@ impl DOCSIS4TLV {
             }
         }
     }
+    fn display_agg(&self) -> String {
+        let mut s = String::new();
+        s.push_str(format!("TLV: {}: {}", self.t, self.description).as_str());
+        for (_, v) in self.sub_tlvs.iter() {
+            if v.tlv.v != Vec::new() {
+                if v.data_type != DATATYPE::AGGREGATE {
+                    s.push_str(format!("\n\tSub {}", v).as_str());
+                } else {
+                    s.push_str(format!("\n\tSub {} has its own sub tlvs", v.t).as_str());
+                    for (_, sv) in v.sub_tlvs.iter() {
+                        if sv.tlv.v != Vec::new() {
+                            if sv.data_type == DATATYPE::AGGREGATE {
+                                s.push_str(format!("\n\t\tSub Sub {} has even more sub sub subs, and that's just crazy", sv.t).as_str());
+                            } else {
+                                s.push_str(format!("\n\t\tSub Sub {}", sv).as_str());
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        s
+    }
 
+}
+impl Display for DOCSIS4TLV {
+        fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+            let mut s = String::new();
+            match self.data_type {
+                DATATYPE::UCHAR => {
+                    s.push_str(format!("TLV: {}: {} {:?} ", self.t, self.description, self.tlv.v).as_str());
+                    s.push_str(format!("Decoded: {}", self.get_int_value().unwrap()).as_str());
+                },
+                DATATYPE::UINT => {
+                    s.push_str(format!("TLV: {}: {} {:?} ", self.t, self.description, self.tlv.v).as_str());
+                    s.push_str(format!("Decoded: {}", self.get_int_value().unwrap()).as_str());
+                },
+                DATATYPE::USHORT => {
+                    s.push_str(format!("TLV: {}: {} {:?} ", self.t, self.description, self.tlv.v).as_str());
+                    s.push_str(format!("Decoded: {}", self.get_int_value().unwrap()).as_str());
+                },
+                DATATYPE::STRING => {
+                    s.push_str(format!("TLV: {}: {} {:?} ", self.t, self.description, self.tlv.v).as_str());
+                    s.push_str(format!("Decoded: {}", self.get_string_value().unwrap()).as_str());
+                }
+                DATATYPE::HEXSTR => {
+                    s.push_str(format!("TLV: {}: {} {:?} ", self.t, self.description, self.tlv.v).as_str());
+                    s.push_str(format!("Decoded: {}", self.get_string_value().unwrap()).as_str());
+                }
+                DATATYPE::MD5 => {
+                    s.push_str(format!("TLV: {}: {} {:?} ", self.t, self.description, self.tlv.v).as_str());
+                    s.push_str(format!("Decoded: {}", self.get_string_value().unwrap()).as_str());
+                }
+                DATATYPE::ENCODE_IP => {
+                    s.push_str(format!("TLV: {}: {} {:?} ", self.t, self.description, self.tlv.v).as_str());
+                    s.push_str(format!("Decoded: {}", self.get_string_value().unwrap()).as_str());
+                }
+                DATATYPE::MIB => {
+                    let filename = format!("{}/.mibs.json", UserDirs::new().unwrap().home_dir().to_str().unwrap());
+                    let mut miblist = mib::MIBList::new();
+                    if Path::new(filename.as_str()).exists() {
+                        miblist = mib::MIBList::from_file(filename.as_str());
+                    }
+                    s.push_str(format!("TLV: {}: {}  ", self.t, self.description).as_str());
+                    // println!("Decoded: {}", this_d4_unwrapped.get_mib_value().unwrap());
+                    if self.mib.is_none() {
+                        s.push_str(format!("MIB TLV, but mib data is missing  ").as_str());
+                    }
+                    else {
+                        let mb = self.mib.as_ref().unwrap();
+                        let mbname = miblist.get_mib(mb.oid.as_str());
+                        if mbname.is_some() {
+                            s.push_str(format!("MIB: {} ({}): <{}> {}: {:?} Raw Bytes: {:?}", mb.oid, mbname.unwrap().name, mb.datatype, mb.index, mb.translate_value(), mb.value).as_str());
+                        } else {
+                            s.push_str(format!("MIB: {} ({}): <{}> {}: {:?} Raw Bytes: {:?}", mb.oid, "Unknown MIB", mb.datatype, mb.index, mb.translate_value(), mb.value).as_str());
+                        }
+                    }
+                }
+                DATATYPE::AGGREGATE => {
+                    // s.push_str(format!("TLV: {}: {}", self.t, self.description).as_str());
+                    s.push_str(format!("\n{}", self.display_agg()).as_str());
+                }
+                _ => {
+                    s.push_str(format!("TLV: {}: {}  ", self.t, self.description).as_str());
+                    s.push_str(format!("Not yet supported").as_str());
+                }
 
+        }
+        write!(f, "{}", s)
+    }
 }
 pub(crate) fn d4_defs() -> HashMap<u8, DOCSIS4TLV> {
     let mut d4_defs = HashMap::new();
@@ -224,6 +451,24 @@ pub(crate) fn d4_defs() -> HashMap<u8, DOCSIS4TLV> {
         mib: None,
     };
     d4_defs.insert(tlv.t, tlv);
+    let mut tlv = DOCSIS4TLV {
+        t: 0x06,
+        description: "CmMic".to_string(),
+        data_type: DATATYPE::MD5,
+        tlv: TLV { t: 0x06, l: 0, v: Vec::new(), sub_tlvs: Vec::new() },
+        sub_tlvs: HashMap::new(),
+        mib: None,
+    };
+    d4_defs.insert(tlv.t, tlv);
+    let mut tlv = DOCSIS4TLV {
+        t: 0x07,
+        description: "CmMic".to_string(),
+        data_type: DATATYPE::MD5,
+        tlv: TLV { t: 0x07, l: 0, v: Vec::new(), sub_tlvs: Vec::new() },
+        sub_tlvs: HashMap::new(),
+        mib: None,
+    };
+    d4_defs.insert(tlv.t, tlv);
 
     let mut tlv = DOCSIS4TLV {
         t: 0x0b,
@@ -235,20 +480,215 @@ pub(crate) fn d4_defs() -> HashMap<u8, DOCSIS4TLV> {
     };
     d4_defs.insert(tlv.t, tlv);
 
+    let mut tlv = DOCSIS4TLV {
+        t: 0x11,
+        description: "BaselinePrivacy".to_string(),
+        data_type: DATATYPE::AGGREGATE,
+        tlv: TLV { t: 0x11, l: 0, v: Vec::new(), sub_tlvs: Vec::new() },
+        sub_tlvs: HashMap::new(),
+        mib: None,
+    };
+    let sub_tlv = DOCSIS4TLV {
+        t: 0x01,
+        description: "AuthTimeout".to_string(),
+        data_type: DATATYPE::UINT,
+        tlv: TLV { t: 0x01, l: 0, v: Vec::new(), sub_tlvs: Vec::new() },
+        sub_tlvs: HashMap::new(),
+        mib: None,
+    };
+    tlv.sub_tlvs.insert(sub_tlv.t, sub_tlv);
+    let sub_tlv = DOCSIS4TLV {
+        t: 0x02,
+        description: "ReAuthTimeout".to_string(),
+        data_type: DATATYPE::UINT,
+        tlv: TLV { t: 0x02, l: 0, v: Vec::new(), sub_tlvs: Vec::new() },
+        sub_tlvs: HashMap::new(),
+        mib: None,
+    };
+    tlv.sub_tlvs.insert(sub_tlv.t, sub_tlv);
+
+    let sub_tlv = DOCSIS4TLV {
+        t: 0x03,
+        description: "AuthGraceTime".to_string(),
+        data_type: DATATYPE::UINT,
+        tlv: TLV { t: 0x03, l: 0, v: Vec::new(), sub_tlvs: Vec::new() },
+        sub_tlvs: HashMap::new(),
+        mib: None,
+    };
+    tlv.sub_tlvs.insert(sub_tlv.t, sub_tlv);
+    let sub_tlv = DOCSIS4TLV {
+        t: 0x04,
+        description: "OperTimeout".to_string(),
+        data_type: DATATYPE::UINT,
+        tlv: TLV { t: 0x04, l: 0, v: Vec::new(), sub_tlvs: Vec::new() },
+        sub_tlvs: HashMap::new(),
+        mib: None,
+    };
+    tlv.sub_tlvs.insert(sub_tlv.t, sub_tlv);
+    let sub_tlv = DOCSIS4TLV {
+        t: 0x05,
+        description: "ReKeyTimeout".to_string(),
+        data_type: DATATYPE::UINT,
+        tlv: TLV { t: 0x05, l: 0, v: Vec::new(), sub_tlvs: Vec::new() },
+        sub_tlvs: HashMap::new(),
+        mib: None,
+    };
+    tlv.sub_tlvs.insert(sub_tlv.t, sub_tlv);
+    let sub_tlv = DOCSIS4TLV {
+        t: 0x06,
+        description: "TEKGraceTime".to_string(),
+        data_type: DATATYPE::UINT,
+        tlv: TLV { t: 0x06, l: 0, v: Vec::new(), sub_tlvs: Vec::new() },
+        sub_tlvs: HashMap::new(),
+        mib: None,
+    };
+    tlv.sub_tlvs.insert(sub_tlv.t, sub_tlv);
+    let sub_tlv = DOCSIS4TLV {
+        t: 0x07,
+        description: "AuthRejectTimeout".to_string(),
+        data_type: DATATYPE::UINT,
+        tlv: TLV { t: 0x07, l: 0, v: Vec::new(), sub_tlvs: Vec::new() },
+        sub_tlvs: HashMap::new(),
+        mib: None,
+    };
+    tlv.sub_tlvs.insert(sub_tlv.t, sub_tlv);
+    let sub_tlv = DOCSIS4TLV {
+        t: 0x08,
+        description: "SAMapWaitTimeout".to_string(),
+        data_type: DATATYPE::UINT,
+        tlv: TLV { t: 0x08, l: 0, v: Vec::new(), sub_tlvs: Vec::new() },
+        sub_tlvs: HashMap::new(),
+        mib: None,
+    };
+    tlv.sub_tlvs.insert(sub_tlv.t, sub_tlv);
+    let sub_tlv = DOCSIS4TLV {
+        t: 0x09,
+        description: "SAMapMaxRetries".to_string(),
+        data_type: DATATYPE::UINT,
+        tlv: TLV { t: 0x09, l: 0, v: Vec::new(), sub_tlvs: Vec::new() },
+        sub_tlvs: HashMap::new(),
+        mib: None,
+    };
+    tlv.sub_tlvs.insert(sub_tlv.t, sub_tlv);
+
+    d4_defs.insert(tlv.t, tlv);
+
+
+    let mut tlv = DOCSIS4TLV {
+        t: 0x12,
+        description: "MaxCPE".to_string(),
+        data_type: DATATYPE::UCHAR,
+        tlv: TLV { t: 0x12, l: 0, v: Vec::new(), sub_tlvs: Vec::new() },
+        sub_tlvs: HashMap::new(),
+        mib: None,
+    };
+    d4_defs.insert(tlv.t, tlv);
+
+    let mut tlv = DOCSIS4TLV {
+        t: 0x16,
+        description: "UsPacketClass".to_string(),
+        data_type: DATATYPE::AGGREGATE,
+        tlv: TLV { t: 0x16, l: 0, v: Vec::new(), sub_tlvs: Vec::new() },
+        sub_tlvs: packet_classifiers(),
+        mib: None,
+        };
+    d4_defs.insert(tlv.t, tlv);
+    let mut tlv = DOCSIS4TLV {
+        t: 0x17,
+        description: "DsPacketClass".to_string(),
+        data_type: DATATYPE::AGGREGATE,
+        tlv: TLV { t: 0x17, l: 0, v: Vec::new(), sub_tlvs: Vec::new() },
+        sub_tlvs: packet_classifiers(),
+        mib: None,
+        };
+    d4_defs.insert(tlv.t, tlv);
+
 //Upstream Service Flow
+
 
     let mut tlv = DOCSIS4TLV {
         t: 0x18,
         description: "UsServiceFlow".to_string(),
         data_type: DATATYPE::AGGREGATE,
         tlv: TLV { t: 0x18, l: 0, v: Vec::new(), sub_tlvs: Vec::new() },
+        sub_tlvs: upstreams(),
+        mib: None,
+        };
+    d4_defs.insert(tlv.t, tlv);
+
+//Downstream Service Flow
+    let mut tlv = DOCSIS4TLV {
+        t: 0x19,
+        description: "DsServiceFlow".to_string(),
+        data_type: DATATYPE::AGGREGATE,
+        tlv: TLV { t: 0x19, l: 0, v: Vec::new(), sub_tlvs: Vec::new() },
+        sub_tlvs: upstreams(), //for now this will work, but there may be some differences I haven't gotten to yet
+        mib: None,
+        };
+    d4_defs.insert(tlv.t, tlv);
+
+    let mut tlv = DOCSIS4TLV {
+        t: 0x1d,
+        description: "GlobalPrivacyEnable".to_string(),
+        data_type: DATATYPE::UCHAR,
+        tlv: TLV { t: 0x1d, l: 0, v: Vec::new(), sub_tlvs: Vec::new() },
+        sub_tlvs: HashMap::new(),
+        mib: None,
+    };
+    d4_defs.insert(tlv.t, tlv);
+
+    let mut tlv = DOCSIS4TLV {
+        t: 0x20,
+        description: "MfgCVCData".to_string(),
+        data_type: DATATYPE::HEXSTR,
+        tlv: TLV { t: 0x20, l: 0, v: Vec::new(), sub_tlvs: Vec::new() },
+        sub_tlvs: HashMap::new(),
+        mib: None,
+    };
+    d4_defs.insert(tlv.t, tlv);
+
+    let mut tlv = DOCSIS4TLV {
+        t: 0x21,
+        description: "CoSignerCVCData".to_string(),
+        data_type: DATATYPE::HEXSTR,
+        tlv: TLV { t: 0x21, l: 0, v: Vec::new(), sub_tlvs: Vec::new() },
+        sub_tlvs: HashMap::new(),
+        mib: None,
+    };
+    d4_defs.insert(tlv.t, tlv);
+
+    let mut tlv = DOCSIS4TLV {
+        t: 0x2b,
+        description: "DsServiceFlow".to_string(),
+        data_type: DATATYPE::AGGREGATE,
+        tlv: TLV { t: 0x2b, l: 0, v: Vec::new(), sub_tlvs: Vec::new() },
+        sub_tlvs: docsis_vendor_specific(),
+        mib: None,
+        };
+    d4_defs.insert(tlv.t, tlv);
+
+    let mut tlv = DOCSIS4TLV {
+        t: 0x3c,
+        description: "UpstreamDropPacketClassification".to_string(),
+        data_type: DATATYPE::AGGREGATE,
+        tlv: TLV { t: 0x32, l: 0, v: Vec::new(), sub_tlvs: Vec::new() },
+        sub_tlvs: upstream_drop_classifiers(),
+        mib: None,
+        };
+    d4_defs.insert(tlv.t, tlv);
+
+    let mut tlv = DOCSIS4TLV {
+        t: 0x54,
+        description: "DiplexerBandEdge".to_string(),
+        data_type: DATATYPE::AGGREGATE,
+        tlv: TLV { t: 0x54, l: 0, v: Vec::new(), sub_tlvs: Vec::new() },
         sub_tlvs: HashMap::new(),
         mib: None,
         };
     let mut sub_tlv = DOCSIS4TLV {
         t: 0x01,
-        description: "UsServiceFlowRef".to_string(),
-        data_type: DATATYPE::USHORT,
+        description: "DiplexerUpstreamUpperBandEdge".to_string(),
+        data_type: DATATYPE::UCHAR,
         tlv: TLV { t: 0x01, l: 0, v: Vec::new(), sub_tlvs: Vec::new() },
         sub_tlvs: HashMap::new(),
         mib: None,
@@ -256,8 +696,8 @@ pub(crate) fn d4_defs() -> HashMap<u8, DOCSIS4TLV> {
     tlv.sub_tlvs.insert(sub_tlv.t, sub_tlv);
     let mut sub_tlv = DOCSIS4TLV {
         t: 0x02,
-        description: "UsServiceFlowId".to_string(),
-        data_type: DATATYPE::UINT,
+        description: "DiplexerDownstreamLowerBandEdge".to_string(),
+        data_type: DATATYPE::UCHAR,
         tlv: TLV { t: 0x02, l: 0, v: Vec::new(), sub_tlvs: Vec::new() },
         sub_tlvs: HashMap::new(),
         mib: None,
@@ -265,1069 +705,35 @@ pub(crate) fn d4_defs() -> HashMap<u8, DOCSIS4TLV> {
     tlv.sub_tlvs.insert(sub_tlv.t, sub_tlv);
     let mut sub_tlv = DOCSIS4TLV {
         t: 0x03,
-        description: "ServiceIdentifier".to_string(),
-        data_type: DATATYPE::USHORT,
+        description: "DiplexerDownstreamUpperBandEdge".to_string(),
+        data_type: DATATYPE::UCHAR,
         tlv: TLV { t: 0x03, l: 0, v: Vec::new(), sub_tlvs: Vec::new() },
         sub_tlvs: HashMap::new(),
         mib: None,
     };
     tlv.sub_tlvs.insert(sub_tlv.t, sub_tlv);
-    let mut sub_tlv = DOCSIS4TLV {
-        t: 0x04,
-        description: "ServiceClassName".to_string(),
-        data_type: DATATYPE::STRINGZERO,
-        tlv: TLV { t: 0x04, l: 0, v: Vec::new(), sub_tlvs: Vec::new() },
-        sub_tlvs: HashMap::new(),
-        mib: None,
-    };
-    tlv.sub_tlvs.insert(sub_tlv.t, sub_tlv);
-    let mut sub_tlv = DOCSIS4TLV {
-        t: 0x06,
-        description: "QosParamSetType".to_string(),
-        data_type: DATATYPE::UCHAR,
-        tlv: TLV { t: 0x06, l: 0, v: Vec::new(), sub_tlvs: Vec::new() },
-        sub_tlvs: HashMap::new(),
-        mib: None,
-    };
-    tlv.sub_tlvs.insert(sub_tlv.t, sub_tlv);
-    let mut sub_tlv = DOCSIS4TLV {
-            t: 0x07,
-            description: "TrafficPriority".to_string(),
-            data_type: DATATYPE::UCHAR,
-            tlv: TLV { t: 0x07, l: 0, v: Vec::new(), sub_tlvs: Vec::new() },
-            sub_tlvs: HashMap::new(),
-        mib: None,
-    };
-    tlv.sub_tlvs.insert(sub_tlv.t, sub_tlv);
-    let mut sub_tlv = DOCSIS4TLV {
-            t: 0x08,
-            description: "MaxRateSustained".to_string(),
-            data_type: DATATYPE::UINT,
-            tlv: TLV { t: 0x08, l: 0, v: Vec::new(), sub_tlvs: Vec::new() },
-            sub_tlvs: HashMap::new(),
-        mib: None,
-    };
-    tlv.sub_tlvs.insert(sub_tlv.t, sub_tlv);
-    let mut sub_tlv = DOCSIS4TLV {
-            t: 0x09,
-            description: "MaxTrafficBurst".to_string(),
-            data_type: DATATYPE::UINT,
-            tlv: TLV { t: 0x09, l: 0, v: Vec::new(), sub_tlvs: Vec::new() },
-            sub_tlvs: HashMap::new(),
-        mib: None,
-    };
-    tlv.sub_tlvs.insert(sub_tlv.t, sub_tlv);
-    let mut sub_tlv = DOCSIS4TLV {
-            t: 0x0a,
-            description: "MinReservedRate".to_string(),
-            data_type: DATATYPE::UINT,
-            tlv: TLV { t: 0x0a, l: 0, v: Vec::new(), sub_tlvs: Vec::new() },
-            sub_tlvs: HashMap::new(),
-        mib: None,
-    };
-    tlv.sub_tlvs.insert(sub_tlv.t, sub_tlv);
-    let mut sub_tlv = DOCSIS4TLV {
-            t: 0x0b,
-            description: "MinResPacketSize".to_string(),
-            data_type: DATATYPE::USHORT,
-            tlv: TLV { t: 0x0b, l: 0, v: Vec::new(), sub_tlvs: Vec::new() },
-            sub_tlvs: HashMap::new(),
-        mib: None,
-    };
-    tlv.sub_tlvs.insert(sub_tlv.t, sub_tlv);
-    let mut sub_tlv = DOCSIS4TLV {
-            t: 0x0c,
-            description: "ActQosParamsTimeout".to_string(),
-            data_type: DATATYPE::USHORT,
-            tlv: TLV { t: 0x0c, l: 0, v: Vec::new(), sub_tlvs: Vec::new() },
-            sub_tlvs: HashMap::new(),
-        mib: None,
-    };
-    tlv.sub_tlvs.insert(sub_tlv.t, sub_tlv);
-    let mut sub_tlv = DOCSIS4TLV {
-            t: 0x0d,
-            description: "AdmQosParamsTimeout".to_string(),
-            data_type: DATATYPE::USHORT,
-            tlv: TLV { t: 0x0d, l: 0, v: Vec::new(), sub_tlvs: Vec::new() },
-            sub_tlvs: HashMap::new(),
-        mib: None,
-    };
-    tlv.sub_tlvs.insert(sub_tlv.t, sub_tlv);
-    let mut sub_tlv = DOCSIS4TLV {
-            t: 0x0e,
-            description: "MaxConcatenatedBurst".to_string(),
-            data_type: DATATYPE::USHORT,
-            tlv: TLV { t: 0x0e, l: 0, v: Vec::new(), sub_tlvs: Vec::new() },
-            sub_tlvs: HashMap::new(),
-        mib: None,
-    };
-    tlv.sub_tlvs.insert(sub_tlv.t, sub_tlv);
-    let mut sub_tlv = DOCSIS4TLV {
-            t: 0x0f,
-            description: "SchedulingType".to_string(),
-            data_type: DATATYPE::UCHAR,
-            tlv: TLV { t: 0x0f, l: 0, v: Vec::new(), sub_tlvs: Vec::new() },
-            sub_tlvs: HashMap::new(),
-        mib: None,
-    };
-    tlv.sub_tlvs.insert(sub_tlv.t, sub_tlv);
-    let mut sub_tlv = DOCSIS4TLV {
-            t: 0x10,
-            description: "RequestOrTxPolicy".to_string(),
-            data_type: DATATYPE::HEXSTR,
-            tlv: TLV { t: 0x10, l: 0, v: Vec::new(), sub_tlvs: Vec::new() },
-            sub_tlvs: HashMap::new(),
-        mib: None,
-    };
-    tlv.sub_tlvs.insert(sub_tlv.t, sub_tlv);
-    let mut sub_tlv = DOCSIS4TLV {
-            t: 0x11,
-            description: "NominalPollInterval".to_string(),
-            data_type: DATATYPE::UINT,
-            tlv: TLV { t: 0x11, l: 0, v: Vec::new(), sub_tlvs: Vec::new() },
-            sub_tlvs: HashMap::new(),
-        mib: None,
-    };
-    tlv.sub_tlvs.insert(sub_tlv.t, sub_tlv);
-    let mut sub_tlv = DOCSIS4TLV {
-            t: 0x12,
-            description: "ToleratedPollJitter".to_string(),
-            data_type: DATATYPE::UINT,
-            tlv: TLV { t: 0x12, l: 0, v: Vec::new(), sub_tlvs: Vec::new() },
-            sub_tlvs: HashMap::new(),
-        mib: None,
-    };
-    tlv.sub_tlvs.insert(sub_tlv.t, sub_tlv);
-    let mut sub_tlv = DOCSIS4TLV {
-            t: 0x13,
-            description: "UnsolicitedGrantSize".to_string(),
-            data_type: DATATYPE::USHORT,
-            tlv: TLV { t: 0x13, l: 0, v: Vec::new(), sub_tlvs: Vec::new() },
-            sub_tlvs: HashMap::new(),
-        mib: None,
-    };
-    tlv.sub_tlvs.insert(sub_tlv.t, sub_tlv);
-    let mut sub_tlv = DOCSIS4TLV {
-            t: 0x14,
-            description: "NominalGrantInterval".to_string(),
-            data_type: DATATYPE::UINT,
-            tlv: TLV { t: 0x14, l: 0, v: Vec::new(), sub_tlvs: Vec::new() },
-            sub_tlvs: HashMap::new(),
-        mib: None,
-    };
-    tlv.sub_tlvs.insert(sub_tlv.t, sub_tlv);
-    let mut sub_tlv = DOCSIS4TLV {
-            t: 0x15,
-            description: "ToleratedGrantJitter".to_string(),
-            data_type: DATATYPE::UINT,
-            tlv: TLV { t: 0x15, l: 0, v: Vec::new(), sub_tlvs: Vec::new() },
-            sub_tlvs: HashMap::new(),
-        mib: None,
-    };
-    tlv.sub_tlvs.insert(sub_tlv.t, sub_tlv);
-    let mut sub_tlv = DOCSIS4TLV {
-            t: 0x16,
-            description: "GrantsPerInterval".to_string(),
-            data_type: DATATYPE::UCHAR,
-            tlv: TLV { t: 0x16, l: 0, v: Vec::new(), sub_tlvs: Vec::new() },
-            sub_tlvs: HashMap::new(),
-        mib: None,
-    };
-    tlv.sub_tlvs.insert(sub_tlv.t, sub_tlv);
-
     d4_defs.insert(tlv.t, tlv);
 
+    let mut tlv = DOCSIS4TLV {
+        t: 0xca,
+        description: "eRouter".to_string(),
+        data_type: DATATYPE::AGGREGATE,
+        tlv: TLV { t: 0xca, l: 0, v: Vec::new(), sub_tlvs: Vec::new() },
+        sub_tlvs: erouter(),
+        mib: None,
+        };
+    d4_defs.insert(tlv.t, tlv);
+
+    let mut tlv = DOCSIS4TLV {
+        t: 0xff,
+        description: "/*EndOfDataMkr*/".to_string(),
+        data_type: DATATYPE::UINT,
+        tlv: TLV { t: 0xff, l: 0, v: Vec::new(), sub_tlvs: Vec::new() },
+        sub_tlvs: HashMap::new(),
+        mib: None,
+    };
+    d4_defs.insert(tlv.t, tlv);
     d4_defs
 }
 
-/*
 
-
-DocsisTlvs["24"]["subTlvs"]["23"] = {}
-DocsisTlvs["24"]["subTlvs"]["23"]["description"] = "IpTosOverwrite"
-DocsisTlvs["24"]["subTlvs"]["23"]["hex"] = "17"
-DocsisTlvs["24"]["subTlvs"]["23"]["datatype"] = "hexstr"
-DocsisTlvs["24"]["subTlvs"]["23"]["subTlvs"] = {}
-
-DocsisTlvs["24"]["subTlvs"]["26"] = {}
-DocsisTlvs["24"]["subTlvs"]["26"]["description"] = "MultipliertoNumberofBytesRequested"
-DocsisTlvs["24"]["subTlvs"]["26"]["hex"] = "1a"
-DocsisTlvs["24"]["subTlvs"]["26"]["datatype"] = "uchar"
-DocsisTlvs["24"]["subTlvs"]["26"]["subTlvs"] = {}
-
-DocsisTlvs["24"]["subTlvs"]["27"] = {}
-DocsisTlvs["24"]["subTlvs"]["27"]["description"] = "UpstreamPeakTrafficRate"
-DocsisTlvs["24"]["subTlvs"]["27"]["hex"] = "1b"
-DocsisTlvs["24"]["subTlvs"]["27"]["datatype"] = "uint"
-DocsisTlvs["24"]["subTlvs"]["27"]["subTlvs"] = {}
-
-DocsisTlvs["24"]["subTlvs"]["31"] = {}
-DocsisTlvs["24"]["subTlvs"]["31"]["description"] = "ServiceFlowRequiredAttributeMask"
-DocsisTlvs["24"]["subTlvs"]["31"]["hex"] = "1f"
-DocsisTlvs["24"]["subTlvs"]["31"]["datatype"] = "hexstr"
-DocsisTlvs["24"]["subTlvs"]["31"]["subTlvs"] = {}
-
-DocsisTlvs["24"]["subTlvs"]["32"] = {}
-DocsisTlvs["24"]["subTlvs"]["32"]["description"] = "ServiceFlowForbiddenAttributeMask"
-DocsisTlvs["24"]["subTlvs"]["32"]["hex"] = "20"
-DocsisTlvs["24"]["subTlvs"]["32"]["datatype"] = "hexstr"
-DocsisTlvs["24"]["subTlvs"]["32"]["subTlvs"] = {}
-
-DocsisTlvs["24"]["subTlvs"]["33"] = {}
-DocsisTlvs["24"]["subTlvs"]["33"]["description"] = "ServiceFlowAttributeAggregationRuleMask"
-DocsisTlvs["24"]["subTlvs"]["33"]["hex"] = "21"
-DocsisTlvs["24"]["subTlvs"]["33"]["datatype"] = "hexstr"
-DocsisTlvs["24"]["subTlvs"]["33"]["subTlvs"] = {}
-
-DocsisTlvs["24"]["subTlvs"]["34"] = {}
-DocsisTlvs["24"]["subTlvs"]["34"]["description"] = "ApplicationIdentifier"
-DocsisTlvs["24"]["subTlvs"]["34"]["hex"] = "22"
-DocsisTlvs["24"]["subTlvs"]["34"]["datatype"] = "uint"
-DocsisTlvs["24"]["subTlvs"]["34"]["subTlvs"] = {}
-
-DocsisTlvs["24"]["subTlvs"]["35"] = {}
-DocsisTlvs["24"]["subTlvs"]["35"]["description"] = "BufferControl"
-DocsisTlvs["24"]["subTlvs"]["35"]["hex"] = "23"
-DocsisTlvs["24"]["subTlvs"]["35"]["datatype"] = "aggregate"
-DocsisTlvs["24"]["subTlvs"]["35"]["subTlvs"] = {}
-
-DocsisTlvs["24"]["subTlvs"]["35"]["subTlvs"]["01"] = {}
-DocsisTlvs["24"]["subTlvs"]["35"]["subTlvs"]["01"]["description"] = "MinimumBuffer"
-DocsisTlvs["24"]["subTlvs"]["35"]["subTlvs"]["01"]["hex"] = "01"
-DocsisTlvs["24"]["subTlvs"]["35"]["subTlvs"]["01"]["datatype"] = "uint"
-DocsisTlvs["24"]["subTlvs"]["35"]["subTlvs"]["01"]["subTlvs"] = {}
-
-DocsisTlvs["24"]["subTlvs"]["35"]["subTlvs"]["02"] = {}
-DocsisTlvs["24"]["subTlvs"]["35"]["subTlvs"]["02"]["description"] = "TargetBuffer"
-DocsisTlvs["24"]["subTlvs"]["35"]["subTlvs"]["02"]["hex"] = "02"
-DocsisTlvs["24"]["subTlvs"]["35"]["subTlvs"]["02"]["datatype"] = "uint"
-DocsisTlvs["24"]["subTlvs"]["35"]["subTlvs"]["02"]["subTlvs"] = {}
-
-DocsisTlvs["24"]["subTlvs"]["35"]["subTlvs"]["03"] = {}
-DocsisTlvs["24"]["subTlvs"]["35"]["subTlvs"]["03"]["description"] = "MaximumBuffer"
-DocsisTlvs["24"]["subTlvs"]["35"]["subTlvs"]["03"]["hex"] = "03"
-DocsisTlvs["24"]["subTlvs"]["35"]["subTlvs"]["03"]["datatype"] = "uint"
-DocsisTlvs["24"]["subTlvs"]["35"]["subTlvs"]["03"]["subTlvs"] = {}
-
-DocsisTlvs["24"]["subTlvs"]["36"] = {}
-DocsisTlvs["24"]["subTlvs"]["36"]["description"] = "UpstreamAggregateServiceFlowReference"
-DocsisTlvs["24"]["subTlvs"]["36"]["hex"] = "24"
-DocsisTlvs["24"]["subTlvs"]["36"]["datatype"] = "aggregate"
-DocsisTlvs["24"]["subTlvs"]["36"]["subTlvs"] = {}
-
-DocsisTlvs["24"]["subTlvs"]["37"] = {}
-DocsisTlvs["24"]["subTlvs"]["37"]["description"] = "UpstreamMESPReference"
-DocsisTlvs["24"]["subTlvs"]["37"]["hex"] = "25"
-DocsisTlvs["24"]["subTlvs"]["37"]["datatype"] = "ushort"
-DocsisTlvs["24"]["subTlvs"]["37"]["subTlvs"] = {}
-
-DocsisTlvs["24"]["subTlvs"]["40"] = {}
-DocsisTlvs["24"]["subTlvs"]["40"]["description"] = "AQMEncodings"
-DocsisTlvs["24"]["subTlvs"]["40"]["hex"] = "28"
-DocsisTlvs["24"]["subTlvs"]["40"]["datatype"] = "aggregate"
-DocsisTlvs["24"]["subTlvs"]["40"]["subTlvs"] = {}
-
-DocsisTlvs["24"]["subTlvs"]["40"]["subTlvs"]["01"] = {}
-DocsisTlvs["24"]["subTlvs"]["40"]["subTlvs"]["01"]["description"] = "SFAQMDisable"
-DocsisTlvs["24"]["subTlvs"]["40"]["subTlvs"]["01"]["hex"] = "01"
-DocsisTlvs["24"]["subTlvs"]["40"]["subTlvs"]["01"]["datatype"] = "uchar"
-DocsisTlvs["24"]["subTlvs"]["40"]["subTlvs"]["01"]["subTlvs"] = {}
-
-DocsisTlvs["24"]["subTlvs"]["40"]["subTlvs"]["02"] = {}
-DocsisTlvs["24"]["subTlvs"]["40"]["subTlvs"]["02"]["description"] = "SFAQMLatencyTarget"
-DocsisTlvs["24"]["subTlvs"]["40"]["subTlvs"]["02"]["hex"] = "02"
-DocsisTlvs["24"]["subTlvs"]["40"]["subTlvs"]["02"]["datatype"] = "uchar"
-DocsisTlvs["24"]["subTlvs"]["40"]["subTlvs"]["02"]["subTlvs"] = {}
-
-DocsisTlvs["24"]["subTlvs"]["41"] = {}
-DocsisTlvs["24"]["subTlvs"]["41"]["description"] = "DataRateUnitSetting"
-DocsisTlvs["24"]["subTlvs"]["41"]["hex"] = "29"
-DocsisTlvs["24"]["subTlvs"]["41"]["datatype"] = "uchar"
-DocsisTlvs["24"]["subTlvs"]["41"]["subTlvs"] = {}
-
-DocsisTlvs["24"]["subTlvs"]["43"] = {}
-DocsisTlvs["24"]["subTlvs"]["43"]["description"] = "VendorSpecific"
-DocsisTlvs["24"]["subTlvs"]["43"]["hex"] = "2b"
-DocsisTlvs["24"]["subTlvs"]["43"]["datatype"] = "aggregate"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"] = {}
-
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["01"] = {}
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["01"]["description"] = "CMLoadBalancingPolicyID"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["01"]["hex"] = "01"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["01"]["datatype"] = "uint"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["01"]["subTlvs"] = {}
-
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["02"] = {}
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["02"]["description"] = "CMLoadBalancingPriority"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["02"]["hex"] = "02"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["02"]["datatype"] = "uint"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["02"]["subTlvs"] = {}
-
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["03"] = {}
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["03"]["description"] = "CMLoadBalancingGroupID"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["03"]["hex"] = "03"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["03"]["datatype"] = "uint"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["03"]["subTlvs"] = {}
-
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["04"] = {}
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["04"]["description"] = "CMRangingClassIDExtension"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["04"]["hex"] = "04"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["04"]["datatype"] = "ushort"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["04"]["subTlvs"] = {}
-
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"] = {}
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["description"] = "L2VPNEncoding"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["hex"] = "05"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["datatype"] = "aggregate"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"] = {}
-
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["01"] = {}
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["01"]["description"] = "VPNIdentifier"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["01"]["hex"] = "01"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["01"]["datatype"] = "hexstr"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["01"]["subTlvs"] = {}
-
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["02"] = {}
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["02"]["description"] = "NSIEncapsulation"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["02"]["hex"] = "02"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["02"]["datatype"] = "aggregate"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["02"]["subTlvs"] = {}
-
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["02"]["subTlvs"]["01"] = {}
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["02"]["subTlvs"]["01"]["description"] = "ServiceMultiplexingValueOther"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["02"]["subTlvs"]["01"]["hex"] = "01"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["02"]["subTlvs"]["01"]["datatype"] = "lenzero"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["02"]["subTlvs"]["01"]["subTlvs"] = {}
-
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["02"]["subTlvs"]["02"] = {}
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["02"]["subTlvs"]["02"]["description"] = "NSIEncapsulationSingleQTag"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["02"]["subTlvs"]["02"]["hex"] = "02"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["02"]["subTlvs"]["02"]["datatype"] = "ushort"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["02"]["subTlvs"]["02"]["subTlvs"] = {}
-
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["02"]["subTlvs"]["03"] = {}
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["02"]["subTlvs"]["03"]["description"] = "NSIEncapsulationDualQTag"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["02"]["subTlvs"]["03"]["hex"] = "03"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["02"]["subTlvs"]["03"]["datatype"] = "dual_qtag"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["02"]["subTlvs"]["03"]["subTlvs"] = {}
-
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["02"]["subTlvs"]["04"] = {}
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["02"]["subTlvs"]["04"]["description"] = "ServiceMultiplexingValueMPLSPW"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["02"]["subTlvs"]["04"]["hex"] = "04"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["02"]["subTlvs"]["04"]["datatype"] = "aggregate"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["02"]["subTlvs"]["04"]["subTlvs"] = {}
-
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["02"]["subTlvs"]["04"]["subTlvs"]["01"] = {}
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["02"]["subTlvs"]["04"]["subTlvs"]["01"]["description"] = "MPLSPseudowireID"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["02"]["subTlvs"]["04"]["subTlvs"]["01"]["hex"] = "01"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["02"]["subTlvs"]["04"]["subTlvs"]["01"]["datatype"] = "uint"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["02"]["subTlvs"]["04"]["subTlvs"]["01"]["subTlvs"] = {}
-
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["02"]["subTlvs"]["04"]["subTlvs"]["02"] = {}
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["02"]["subTlvs"]["04"]["subTlvs"]["02"]["description"] = "MPLSPeerIpAddress"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["02"]["subTlvs"]["04"]["subTlvs"]["02"]["hex"] = "02"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["02"]["subTlvs"]["04"]["subTlvs"]["02"]["datatype"] = "char_ip_ip6"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["02"]["subTlvs"]["04"]["subTlvs"]["02"]["subTlvs"] = {}
-
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["02"]["subTlvs"]["04"]["subTlvs"]["03"] = {}
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["02"]["subTlvs"]["04"]["subTlvs"]["03"]["description"] = "MPLSPseudowireType"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["02"]["subTlvs"]["04"]["subTlvs"]["03"]["hex"] = "03"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["02"]["subTlvs"]["04"]["subTlvs"]["03"]["datatype"] = "uchar"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["02"]["subTlvs"]["04"]["subTlvs"]["03"]["subTlvs"] = {}
-
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["02"]["subTlvs"]["04"]["subTlvs"]["04"] = {}
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["02"]["subTlvs"]["04"]["subTlvs"]["04"]["description"] = "MPLSBackupPseudowireID"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["02"]["subTlvs"]["04"]["subTlvs"]["04"]["hex"] = "04"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["02"]["subTlvs"]["04"]["subTlvs"]["04"]["datatype"] = "uint"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["02"]["subTlvs"]["04"]["subTlvs"]["04"]["subTlvs"] = {}
-
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["02"]["subTlvs"]["04"]["subTlvs"]["05"] = {}
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["02"]["subTlvs"]["04"]["subTlvs"]["05"]["description"] = "MPLSBackupPeerIpAddress"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["02"]["subTlvs"]["04"]["subTlvs"]["05"]["hex"] = "05"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["02"]["subTlvs"]["04"]["subTlvs"]["05"]["datatype"] = "char_ip_ip6"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["02"]["subTlvs"]["04"]["subTlvs"]["05"]["subTlvs"] = {}
-
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["02"]["subTlvs"]["05"] = {}
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["02"]["subTlvs"]["05"]["description"] = "ServiceMultiplexingValueL2TPv3Peer"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["02"]["subTlvs"]["05"]["hex"] = "05"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["02"]["subTlvs"]["05"]["datatype"] = "char_ip_ip6"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["02"]["subTlvs"]["05"]["subTlvs"] = {}
-
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["02"]["subTlvs"]["06"] = {}
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["02"]["subTlvs"]["06"]["description"] = "IEEE8021ahEncapsulation"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["02"]["subTlvs"]["06"]["hex"] = "06"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["02"]["subTlvs"]["06"]["datatype"] = "aggregate"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["02"]["subTlvs"]["06"]["subTlvs"] = {}
-
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["02"]["subTlvs"]["06"]["subTlvs"]["01"] = {}
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["02"]["subTlvs"]["06"]["subTlvs"]["01"]["description"] = "ITCIEncapsulation"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["02"]["subTlvs"]["06"]["subTlvs"]["01"]["hex"] = "01"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["02"]["subTlvs"]["06"]["subTlvs"]["01"]["datatype"] = "hexstr"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["02"]["subTlvs"]["06"]["subTlvs"]["01"]["subTlvs"] = {}
-
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["02"]["subTlvs"]["06"]["subTlvs"]["02"] = {}
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["02"]["subTlvs"]["06"]["subTlvs"]["02"]["description"] = "BDAEncapsulation"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["02"]["subTlvs"]["06"]["subTlvs"]["02"]["hex"] = "02"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["02"]["subTlvs"]["06"]["subTlvs"]["02"]["datatype"] = "hexstr"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["02"]["subTlvs"]["06"]["subTlvs"]["02"]["subTlvs"] = {}
-
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["02"]["subTlvs"]["06"]["subTlvs"]["03"] = {}
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["02"]["subTlvs"]["06"]["subTlvs"]["03"]["description"] = "BTCIEncapsulation"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["02"]["subTlvs"]["06"]["subTlvs"]["03"]["hex"] = "03"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["02"]["subTlvs"]["06"]["subTlvs"]["03"]["datatype"] = "hexstr"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["02"]["subTlvs"]["06"]["subTlvs"]["03"]["subTlvs"] = {}
-
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["02"]["subTlvs"]["06"]["subTlvs"]["04"] = {}
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["02"]["subTlvs"]["06"]["subTlvs"]["04"]["description"] = "ITPIDEncapsulation"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["02"]["subTlvs"]["06"]["subTlvs"]["04"]["hex"] = "04"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["02"]["subTlvs"]["06"]["subTlvs"]["04"]["datatype"] = "hexstr"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["02"]["subTlvs"]["06"]["subTlvs"]["04"]["subTlvs"] = {}
-
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["02"]["subTlvs"]["06"]["subTlvs"]["05"] = {}
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["02"]["subTlvs"]["06"]["subTlvs"]["05"]["description"] = "IPCPEncapsulation"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["02"]["subTlvs"]["06"]["subTlvs"]["05"]["hex"] = "05"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["02"]["subTlvs"]["06"]["subTlvs"]["05"]["datatype"] = "hexstr"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["02"]["subTlvs"]["06"]["subTlvs"]["05"]["subTlvs"] = {}
-
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["02"]["subTlvs"]["06"]["subTlvs"]["06"] = {}
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["02"]["subTlvs"]["06"]["subTlvs"]["06"]["description"] = "IDEIEncapsulation"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["02"]["subTlvs"]["06"]["subTlvs"]["06"]["hex"] = "06"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["02"]["subTlvs"]["06"]["subTlvs"]["06"]["datatype"] = "hexstr"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["02"]["subTlvs"]["06"]["subTlvs"]["06"]["subTlvs"] = {}
-
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["02"]["subTlvs"]["06"]["subTlvs"]["07"] = {}
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["02"]["subTlvs"]["06"]["subTlvs"]["07"]["description"] = "IUCAEncapsulation"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["02"]["subTlvs"]["06"]["subTlvs"]["07"]["hex"] = "07"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["02"]["subTlvs"]["06"]["subTlvs"]["07"]["datatype"] = "hexstr"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["02"]["subTlvs"]["06"]["subTlvs"]["07"]["subTlvs"] = {}
-
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["02"]["subTlvs"]["06"]["subTlvs"]["08"] = {}
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["02"]["subTlvs"]["06"]["subTlvs"]["08"]["description"] = "ISIDEncapsulation"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["02"]["subTlvs"]["06"]["subTlvs"]["08"]["hex"] = "08"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["02"]["subTlvs"]["06"]["subTlvs"]["08"]["datatype"] = "hexstr"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["02"]["subTlvs"]["06"]["subTlvs"]["08"]["subTlvs"] = {}
-
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["02"]["subTlvs"]["06"]["subTlvs"]["09"] = {}
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["02"]["subTlvs"]["06"]["subTlvs"]["09"]["description"] = "BTPIDEncapsulation"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["02"]["subTlvs"]["06"]["subTlvs"]["09"]["hex"] = "09"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["02"]["subTlvs"]["06"]["subTlvs"]["09"]["datatype"] = "hexstr"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["02"]["subTlvs"]["06"]["subTlvs"]["09"]["subTlvs"] = {}
-
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["02"]["subTlvs"]["06"]["subTlvs"]["10"] = {}
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["02"]["subTlvs"]["06"]["subTlvs"]["10"]["description"] = "BPCPEncapsulation"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["02"]["subTlvs"]["06"]["subTlvs"]["10"]["hex"] = "0a"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["02"]["subTlvs"]["06"]["subTlvs"]["10"]["datatype"] = "hexstr"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["02"]["subTlvs"]["06"]["subTlvs"]["10"]["subTlvs"] = {}
-
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["02"]["subTlvs"]["06"]["subTlvs"]["11"] = {}
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["02"]["subTlvs"]["06"]["subTlvs"]["11"]["description"] = "BDEIEncapsulation"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["02"]["subTlvs"]["06"]["subTlvs"]["11"]["hex"] = "0b"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["02"]["subTlvs"]["06"]["subTlvs"]["11"]["datatype"] = "hexstr"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["02"]["subTlvs"]["06"]["subTlvs"]["11"]["subTlvs"] = {}
-
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["02"]["subTlvs"]["06"]["subTlvs"]["12"] = {}
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["02"]["subTlvs"]["06"]["subTlvs"]["12"]["description"] = "BVIDEncapsulation"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["02"]["subTlvs"]["06"]["subTlvs"]["12"]["hex"] = "0c"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["02"]["subTlvs"]["06"]["subTlvs"]["12"]["datatype"] = "hexstr"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["02"]["subTlvs"]["06"]["subTlvs"]["12"]["subTlvs"] = {}
-
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["02"]["subTlvs"]["08"] = {}
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["02"]["subTlvs"]["08"]["description"] = "ServiceMultiplexingValueIEEE8021adSTPID"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["02"]["subTlvs"]["08"]["hex"] = "08"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["02"]["subTlvs"]["08"]["datatype"] = "hexstr"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["02"]["subTlvs"]["08"]["subTlvs"] = {}
-
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["03"] = {}
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["03"]["description"] = "eSAFEDHCPSnooping"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["03"]["hex"] = "03"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["03"]["datatype"] = "hexstr"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["03"]["subTlvs"] = {}
-
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["04"] = {}
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["04"]["description"] = "CMInterfaceMaskCMIMSubtype"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["04"]["hex"] = "04"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["04"]["datatype"] = "hexstr"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["04"]["subTlvs"] = {}
-
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["05"] = {}
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["05"]["description"] = "AttachmentGroupID"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["05"]["hex"] = "05"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["05"]["datatype"] = "hexstr"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["05"]["subTlvs"] = {}
-
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["06"] = {}
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["06"]["description"] = "SourceAttachmentIndividualID"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["06"]["hex"] = "06"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["06"]["datatype"] = "hexstr"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["06"]["subTlvs"] = {}
-
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["07"] = {}
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["07"]["description"] = "TargetAttachmentIndividualID"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["07"]["hex"] = "07"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["07"]["datatype"] = "hexstr"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["07"]["subTlvs"] = {}
-
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["08"] = {}
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["08"]["description"] = "IngressUserPriority"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["08"]["hex"] = "08"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["08"]["datatype"] = "uchar"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["08"]["subTlvs"] = {}
-
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["09"] = {}
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["09"]["description"] = "UserPriorityRange"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["09"]["hex"] = "09"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["09"]["datatype"] = "char_list"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["09"]["subTlvs"] = {}
-
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["10"] = {}
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["10"]["description"] = "L2VPNSADescriptorSubtype"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["10"]["hex"] = "0a"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["10"]["datatype"] = "hexstr"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["10"]["subTlvs"] = {}
-
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["12"] = {}
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["12"]["description"] = "PseudowireType"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["12"]["hex"] = "0c"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["12"]["datatype"] = "uchar"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["12"]["subTlvs"] = {}
-
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["13"] = {}
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["13"]["description"] = "L2VPNMode"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["13"]["hex"] = "0d"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["13"]["datatype"] = "uchar"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["13"]["subTlvs"] = {}
-
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["14"] = {}
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["14"]["description"] = "TPIDTranslation"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["14"]["hex"] = "0e"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["14"]["datatype"] = "aggregate"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["14"]["subTlvs"] = {}
-
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["14"]["subTlvs"]["01"] = {}
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["14"]["subTlvs"]["01"]["description"] = "UpstreamTPIDTranslation"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["14"]["subTlvs"]["01"]["hex"] = "01"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["14"]["subTlvs"]["01"]["datatype"] = "hexstr"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["14"]["subTlvs"]["01"]["subTlvs"] = {}
-
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["14"]["subTlvs"]["02"] = {}
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["14"]["subTlvs"]["02"]["description"] = "DownstreamTPIDTranslation"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["14"]["subTlvs"]["02"]["hex"] = "02"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["14"]["subTlvs"]["02"]["datatype"] = "hexstr"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["14"]["subTlvs"]["02"]["subTlvs"] = {}
-
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["14"]["subTlvs"]["03"] = {}
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["14"]["subTlvs"]["03"]["description"] = "UpstreamSTPIDTranslation"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["14"]["subTlvs"]["03"]["hex"] = "03"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["14"]["subTlvs"]["03"]["datatype"] = "hexstr"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["14"]["subTlvs"]["03"]["subTlvs"] = {}
-
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["14"]["subTlvs"]["04"] = {}
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["14"]["subTlvs"]["04"]["description"] = "DownstreamSTPIDTranslation"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["14"]["subTlvs"]["04"]["hex"] = "04"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["14"]["subTlvs"]["04"]["datatype"] = "hexstr"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["14"]["subTlvs"]["04"]["subTlvs"] = {}
-
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["14"]["subTlvs"]["05"] = {}
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["14"]["subTlvs"]["05"]["description"] = "UpstreamBTPIDTranslation"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["14"]["subTlvs"]["05"]["hex"] = "05"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["14"]["subTlvs"]["05"]["datatype"] = "hexstr"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["14"]["subTlvs"]["05"]["subTlvs"] = {}
-
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["14"]["subTlvs"]["06"] = {}
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["14"]["subTlvs"]["06"]["description"] = "DownstreamBTPIDTranslation"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["14"]["subTlvs"]["06"]["hex"] = "06"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["14"]["subTlvs"]["06"]["datatype"] = "hexstr"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["14"]["subTlvs"]["06"]["subTlvs"] = {}
-
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["14"]["subTlvs"]["07"] = {}
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["14"]["subTlvs"]["07"]["description"] = "UpstreamITPIDTranslation"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["14"]["subTlvs"]["07"]["hex"] = "07"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["14"]["subTlvs"]["07"]["datatype"] = "hexstr"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["14"]["subTlvs"]["07"]["subTlvs"] = {}
-
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["14"]["subTlvs"]["08"] = {}
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["14"]["subTlvs"]["08"]["description"] = "DownstreamITPIDTranslation"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["14"]["subTlvs"]["08"]["hex"] = "08"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["14"]["subTlvs"]["08"]["datatype"] = "hexstr"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["14"]["subTlvs"]["08"]["subTlvs"] = {}
-
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["15"] = {}
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["15"]["description"] = "L2CPProcessing"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["15"]["hex"] = "0f"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["15"]["datatype"] = "aggregate"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["15"]["subTlvs"] = {}
-
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["15"]["subTlvs"]["01"] = {}
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["15"]["subTlvs"]["01"]["description"] = "L2CPTunnelMode"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["15"]["subTlvs"]["01"]["hex"] = "01"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["15"]["subTlvs"]["01"]["datatype"] = "uchar"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["15"]["subTlvs"]["01"]["subTlvs"] = {}
-
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["15"]["subTlvs"]["02"] = {}
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["15"]["subTlvs"]["02"]["description"] = "L2CPDMACAddress"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["15"]["subTlvs"]["02"]["hex"] = "02"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["15"]["subTlvs"]["02"]["datatype"] = "ether"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["15"]["subTlvs"]["02"]["subTlvs"] = {}
-
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["15"]["subTlvs"]["03"] = {}
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["15"]["subTlvs"]["03"]["description"] = "L2CPOverwrotingDMACAddress"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["15"]["subTlvs"]["03"]["hex"] = "03"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["15"]["subTlvs"]["03"]["datatype"] = "ether"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["15"]["subTlvs"]["03"]["subTlvs"] = {}
-
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["16"] = {}
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["16"]["description"] = "DACDisableEnableConfiguration"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["16"]["hex"] = "10"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["16"]["datatype"] = "uchar"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["16"]["subTlvs"] = {}
-
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["18"] = {}
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["18"]["description"] = "PseudowireClass"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["18"]["hex"] = "12"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["18"]["datatype"] = "hexstr"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["18"]["subTlvs"] = {}
-
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["19"] = {}
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["19"]["description"] = "ServiceDelimiter"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["19"]["hex"] = "13"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["19"]["datatype"] = "aggregate"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["19"]["subTlvs"] = {}
-
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["19"]["subTlvs"]["01"] = {}
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["19"]["subTlvs"]["01"]["description"] = "CVIDDelimiter"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["19"]["subTlvs"]["01"]["hex"] = "01"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["19"]["subTlvs"]["01"]["datatype"] = "hexstr"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["19"]["subTlvs"]["01"]["subTlvs"] = {}
-
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["19"]["subTlvs"]["02"] = {}
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["19"]["subTlvs"]["02"]["description"] = "SVIDDelimiter"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["19"]["subTlvs"]["02"]["hex"] = "02"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["19"]["subTlvs"]["02"]["datatype"] = "hexstr"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["19"]["subTlvs"]["02"]["subTlvs"] = {}
-
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["19"]["subTlvs"]["03"] = {}
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["19"]["subTlvs"]["03"]["description"] = "ISIDDelimiter"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["19"]["subTlvs"]["03"]["hex"] = "03"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["19"]["subTlvs"]["03"]["datatype"] = "hexstr"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["19"]["subTlvs"]["03"]["subTlvs"] = {}
-
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["19"]["subTlvs"]["04"] = {}
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["19"]["subTlvs"]["04"]["description"] = "BVIDDelimiter"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["19"]["subTlvs"]["04"]["hex"] = "04"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["19"]["subTlvs"]["04"]["datatype"] = "hexstr"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["19"]["subTlvs"]["04"]["subTlvs"] = {}
-
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["20"] = {}
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["20"]["description"] = "VirtualSwitchInstanceEncoding"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["20"]["hex"] = "14"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["20"]["datatype"] = "aggregate"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["20"]["subTlvs"] = {}
-
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["20"]["subTlvs"]["01"] = {}
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["20"]["subTlvs"]["01"]["description"] = "VPLSClass"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["20"]["subTlvs"]["01"]["hex"] = "01"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["20"]["subTlvs"]["01"]["datatype"] = "hexstr"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["20"]["subTlvs"]["01"]["subTlvs"] = {}
-
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["20"]["subTlvs"]["02"] = {}
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["20"]["subTlvs"]["02"]["description"] = "ETreeRole"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["20"]["subTlvs"]["02"]["hex"] = "02"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["20"]["subTlvs"]["02"]["datatype"] = "uchar"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["20"]["subTlvs"]["02"]["subTlvs"] = {}
-
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["20"]["subTlvs"]["03"] = {}
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["20"]["subTlvs"]["03"]["description"] = "ETreeRootVID"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["20"]["subTlvs"]["03"]["hex"] = "03"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["20"]["subTlvs"]["03"]["datatype"] = "hexstr"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["20"]["subTlvs"]["03"]["subTlvs"] = {}
-
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["20"]["subTlvs"]["04"] = {}
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["20"]["subTlvs"]["04"]["description"] = "ETreeLeafVID"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["20"]["subTlvs"]["04"]["hex"] = "04"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["20"]["subTlvs"]["04"]["datatype"] = "hexstr"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["20"]["subTlvs"]["04"]["subTlvs"] = {}
-
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["21"] = {}
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["21"]["description"] = "BGPAttribute"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["21"]["hex"] = "15"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["21"]["datatype"] = "aggregate"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["21"]["subTlvs"] = {}
-
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["21"]["subTlvs"]["01"] = {}
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["21"]["subTlvs"]["01"]["description"] = "BGPVPNID"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["21"]["subTlvs"]["01"]["hex"] = "01"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["21"]["subTlvs"]["01"]["datatype"] = "uint"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["21"]["subTlvs"]["01"]["subTlvs"] = {}
-
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["21"]["subTlvs"]["02"] = {}
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["21"]["subTlvs"]["02"]["description"] = "RouteDistinguisher"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["21"]["subTlvs"]["02"]["hex"] = "02"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["21"]["subTlvs"]["02"]["datatype"] = "hexstr"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["21"]["subTlvs"]["02"]["subTlvs"] = {}
-
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["21"]["subTlvs"]["03"] = {}
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["21"]["subTlvs"]["03"]["description"] = "RouteTargetImport"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["21"]["subTlvs"]["03"]["hex"] = "03"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["21"]["subTlvs"]["03"]["datatype"] = "hexstr"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["21"]["subTlvs"]["03"]["subTlvs"] = {}
-
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["21"]["subTlvs"]["04"] = {}
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["21"]["subTlvs"]["04"]["description"] = "RouteTargetExport"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["21"]["subTlvs"]["04"]["hex"] = "04"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["21"]["subTlvs"]["04"]["datatype"] = "hexstr"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["21"]["subTlvs"]["04"]["subTlvs"] = {}
-
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["21"]["subTlvs"]["05"] = {}
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["21"]["subTlvs"]["05"]["description"] = "CEIDVEID"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["21"]["subTlvs"]["05"]["hex"] = "05"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["21"]["subTlvs"]["05"]["datatype"] = "ushort"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["21"]["subTlvs"]["05"]["subTlvs"] = {}
-
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["23"] = {}
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["23"]["description"] = "PseudowireSignaling"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["23"]["hex"] = "17"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["23"]["datatype"] = "uchar"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["23"]["subTlvs"] = {}
-
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["24"] = {}
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["24"]["description"] = "SOAMSubtype"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["24"]["hex"] = "18"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["24"]["datatype"] = "aggregate"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["24"]["subTlvs"] = {}
-
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["24"]["subTlvs"]["01"] = {}
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["24"]["subTlvs"]["01"]["description"] = "MEPConfiguration"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["24"]["subTlvs"]["01"]["hex"] = "01"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["24"]["subTlvs"]["01"]["datatype"] = "aggregate"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["24"]["subTlvs"]["01"]["subTlvs"] = {}
-
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["24"]["subTlvs"]["01"]["subTlvs"]["01"] = {}
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["24"]["subTlvs"]["01"]["subTlvs"]["01"]["description"] = "MDLevel"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["24"]["subTlvs"]["01"]["subTlvs"]["01"]["hex"] = "01"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["24"]["subTlvs"]["01"]["subTlvs"]["01"]["datatype"] = "uchar"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["24"]["subTlvs"]["01"]["subTlvs"]["01"]["subTlvs"] = {}
-
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["24"]["subTlvs"]["01"]["subTlvs"]["02"] = {}
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["24"]["subTlvs"]["01"]["subTlvs"]["02"]["description"] = "MDName"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["24"]["subTlvs"]["01"]["subTlvs"]["02"]["hex"] = "02"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["24"]["subTlvs"]["01"]["subTlvs"]["02"]["datatype"] = "string"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["24"]["subTlvs"]["01"]["subTlvs"]["02"]["subTlvs"] = {}
-
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["24"]["subTlvs"]["01"]["subTlvs"]["03"] = {}
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["24"]["subTlvs"]["01"]["subTlvs"]["03"]["description"] = "MAName"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["24"]["subTlvs"]["01"]["subTlvs"]["03"]["hex"] = "03"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["24"]["subTlvs"]["01"]["subTlvs"]["03"]["datatype"] = "string"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["24"]["subTlvs"]["01"]["subTlvs"]["03"]["subTlvs"] = {}
-
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["24"]["subTlvs"]["01"]["subTlvs"]["04"] = {}
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["24"]["subTlvs"]["01"]["subTlvs"]["04"]["description"] = "MEPID"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["24"]["subTlvs"]["01"]["subTlvs"]["04"]["hex"] = "04"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["24"]["subTlvs"]["01"]["subTlvs"]["04"]["datatype"] = "ushort"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["24"]["subTlvs"]["01"]["subTlvs"]["04"]["subTlvs"] = {}
-
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["24"]["subTlvs"]["02"] = {}
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["24"]["subTlvs"]["02"]["description"] = "RemoteMEPConfiguration"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["24"]["subTlvs"]["02"]["hex"] = "02"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["24"]["subTlvs"]["02"]["datatype"] = "aggregate"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["24"]["subTlvs"]["02"]["subTlvs"] = {}
-
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["24"]["subTlvs"]["02"]["subTlvs"]["01"] = {}
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["24"]["subTlvs"]["02"]["subTlvs"]["01"]["description"] = "RemoteMDLevel"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["24"]["subTlvs"]["02"]["subTlvs"]["01"]["hex"] = "01"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["24"]["subTlvs"]["02"]["subTlvs"]["01"]["datatype"] = "uchar"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["24"]["subTlvs"]["02"]["subTlvs"]["01"]["subTlvs"] = {}
-
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["24"]["subTlvs"]["02"]["subTlvs"]["02"] = {}
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["24"]["subTlvs"]["02"]["subTlvs"]["02"]["description"] = "RemoteMDName"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["24"]["subTlvs"]["02"]["subTlvs"]["02"]["hex"] = "02"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["24"]["subTlvs"]["02"]["subTlvs"]["02"]["datatype"] = "string"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["24"]["subTlvs"]["02"]["subTlvs"]["02"]["subTlvs"] = {}
-
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["24"]["subTlvs"]["02"]["subTlvs"]["03"] = {}
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["24"]["subTlvs"]["02"]["subTlvs"]["03"]["description"] = "RemoteMAName"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["24"]["subTlvs"]["02"]["subTlvs"]["03"]["hex"] = "03"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["24"]["subTlvs"]["02"]["subTlvs"]["03"]["datatype"] = "string"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["24"]["subTlvs"]["02"]["subTlvs"]["03"]["subTlvs"] = {}
-
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["24"]["subTlvs"]["02"]["subTlvs"]["04"] = {}
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["24"]["subTlvs"]["02"]["subTlvs"]["04"]["description"] = "RemoteMEPID"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["24"]["subTlvs"]["02"]["subTlvs"]["04"]["hex"] = "04"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["24"]["subTlvs"]["02"]["subTlvs"]["04"]["datatype"] = "ushort"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["24"]["subTlvs"]["02"]["subTlvs"]["04"]["subTlvs"] = {}
-
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["24"]["subTlvs"]["03"] = {}
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["24"]["subTlvs"]["03"]["description"] = "FaultManagementConfiguration"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["24"]["subTlvs"]["03"]["hex"] = "03"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["24"]["subTlvs"]["03"]["datatype"] = "aggregate"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["24"]["subTlvs"]["03"]["subTlvs"] = {}
-
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["24"]["subTlvs"]["03"]["subTlvs"]["01"] = {}
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["24"]["subTlvs"]["03"]["subTlvs"]["01"]["description"] = "ContinuityCheckMessages"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["24"]["subTlvs"]["03"]["subTlvs"]["01"]["hex"] = "01"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["24"]["subTlvs"]["03"]["subTlvs"]["01"]["datatype"] = "uchar"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["24"]["subTlvs"]["03"]["subTlvs"]["01"]["subTlvs"] = {}
-
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["24"]["subTlvs"]["03"]["subTlvs"]["02"] = {}
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["24"]["subTlvs"]["03"]["subTlvs"]["02"]["description"] = "LoopbackFunction"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["24"]["subTlvs"]["03"]["subTlvs"]["02"]["hex"] = "02"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["24"]["subTlvs"]["03"]["subTlvs"]["02"]["datatype"] = "uchar"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["24"]["subTlvs"]["03"]["subTlvs"]["02"]["subTlvs"] = {}
-
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["24"]["subTlvs"]["03"]["subTlvs"]["03"] = {}
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["24"]["subTlvs"]["03"]["subTlvs"]["03"]["description"] = "LinktraceFunction"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["24"]["subTlvs"]["03"]["subTlvs"]["03"]["hex"] = "03"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["24"]["subTlvs"]["03"]["subTlvs"]["03"]["datatype"] = "uchar"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["24"]["subTlvs"]["03"]["subTlvs"]["03"]["subTlvs"] = {}
-
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["24"]["subTlvs"]["04"] = {}
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["24"]["subTlvs"]["04"]["description"] = "PerformanceManagementConfiguration"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["24"]["subTlvs"]["04"]["hex"] = "04"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["24"]["subTlvs"]["04"]["datatype"] = "aggregate"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["24"]["subTlvs"]["04"]["subTlvs"] = {}
-
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["24"]["subTlvs"]["04"]["subTlvs"]["01"] = {}
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["24"]["subTlvs"]["04"]["subTlvs"]["01"]["description"] = "FrameDelayMeasurement"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["24"]["subTlvs"]["04"]["subTlvs"]["01"]["hex"] = "01"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["24"]["subTlvs"]["04"]["subTlvs"]["01"]["datatype"] = "aggregate"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["24"]["subTlvs"]["04"]["subTlvs"]["01"]["subTlvs"] = {}
-
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["24"]["subTlvs"]["04"]["subTlvs"]["01"]["subTlvs"]["01"] = {}
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["24"]["subTlvs"]["04"]["subTlvs"]["01"]["subTlvs"]["01"]["description"] = "FrameDelayMeasurementEnable"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["24"]["subTlvs"]["04"]["subTlvs"]["01"]["subTlvs"]["01"]["hex"] = "01"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["24"]["subTlvs"]["04"]["subTlvs"]["01"]["subTlvs"]["01"]["datatype"] = "uchar"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["24"]["subTlvs"]["04"]["subTlvs"]["01"]["subTlvs"]["01"]["subTlvs"] = {}
-
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["24"]["subTlvs"]["04"]["subTlvs"]["01"]["subTlvs"]["02"] = {}
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["24"]["subTlvs"]["04"]["subTlvs"]["01"]["subTlvs"]["02"]["description"] = "FrameDelayMeasurementOneWayTwoWay"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["24"]["subTlvs"]["04"]["subTlvs"]["01"]["subTlvs"]["02"]["hex"] = "02"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["24"]["subTlvs"]["04"]["subTlvs"]["01"]["subTlvs"]["02"]["datatype"] = "uchar"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["24"]["subTlvs"]["04"]["subTlvs"]["01"]["subTlvs"]["02"]["subTlvs"] = {}
-
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["24"]["subTlvs"]["04"]["subTlvs"]["01"]["subTlvs"]["03"] = {}
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["24"]["subTlvs"]["04"]["subTlvs"]["01"]["subTlvs"]["03"]["description"] = "FrameDelayMeasurementTransmissionPeriodicity"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["24"]["subTlvs"]["04"]["subTlvs"]["01"]["subTlvs"]["03"]["hex"] = "03"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["24"]["subTlvs"]["04"]["subTlvs"]["01"]["subTlvs"]["03"]["datatype"] = "ushort"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["24"]["subTlvs"]["04"]["subTlvs"]["01"]["subTlvs"]["03"]["subTlvs"] = {}
-
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["24"]["subTlvs"]["04"]["subTlvs"]["02"] = {}
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["24"]["subTlvs"]["04"]["subTlvs"]["02"]["description"] = "FrameLossMeasurement"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["24"]["subTlvs"]["04"]["subTlvs"]["02"]["hex"] = "02"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["24"]["subTlvs"]["04"]["subTlvs"]["02"]["datatype"] = "aggregate"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["24"]["subTlvs"]["04"]["subTlvs"]["02"]["subTlvs"] = {}
-
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["24"]["subTlvs"]["04"]["subTlvs"]["02"]["subTlvs"]["01"] = {}
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["24"]["subTlvs"]["04"]["subTlvs"]["02"]["subTlvs"]["01"]["description"] = "FrameLossMeasurementEnable"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["24"]["subTlvs"]["04"]["subTlvs"]["02"]["subTlvs"]["01"]["hex"] = "01"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["24"]["subTlvs"]["04"]["subTlvs"]["02"]["subTlvs"]["01"]["datatype"] = "uchar"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["24"]["subTlvs"]["04"]["subTlvs"]["02"]["subTlvs"]["01"]["subTlvs"] = {}
-
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["24"]["subTlvs"]["04"]["subTlvs"]["02"]["subTlvs"]["02"] = {}
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["24"]["subTlvs"]["04"]["subTlvs"]["02"]["subTlvs"]["02"]["description"] = "FrameLossMeasurementTransmissionPeriodicity"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["24"]["subTlvs"]["04"]["subTlvs"]["02"]["subTlvs"]["02"]["hex"] = "02"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["24"]["subTlvs"]["04"]["subTlvs"]["02"]["subTlvs"]["02"]["datatype"] = "uchar"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["24"]["subTlvs"]["04"]["subTlvs"]["02"]["subTlvs"]["02"]["subTlvs"] = {}
-
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["26"] = {}
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["26"]["description"] = "L2VPNDSID"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["26"]["hex"] = "1a"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["26"]["datatype"] = "uint24"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["26"]["subTlvs"] = {}
-
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["43"] = {}
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["43"]["description"] = "VendorSpecificL2VPNSubtype"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["43"]["hex"] = "2b"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["43"]["datatype"] = "aggregate"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["43"]["subTlvs"] = {}
-
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["43"]["subTlvs"]["08"] = {}
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["43"]["subTlvs"]["08"]["description"] = "VendorIdentifier"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["43"]["subTlvs"]["08"]["hex"] = "08"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["43"]["subTlvs"]["08"]["datatype"] = "hexstr"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["05"]["subTlvs"]["43"]["subTlvs"]["08"]["subTlvs"] = {}
-
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["06"] = {}
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["06"]["description"] = "ExtendedCMTSMICConfigurationSetting"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["06"]["hex"] = "06"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["06"]["datatype"] = "aggregate"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["06"]["subTlvs"] = {}
-
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["06"]["subTlvs"]["01"] = {}
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["06"]["subTlvs"]["01"]["description"] = "ExtendedCMTSMICHMACtype"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["06"]["subTlvs"]["01"]["hex"] = "01"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["06"]["subTlvs"]["01"]["datatype"] = "uchar"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["06"]["subTlvs"]["01"]["subTlvs"] = {}
-
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["06"]["subTlvs"]["02"] = {}
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["06"]["subTlvs"]["02"]["description"] = "ExtendedCMTSMICBitmap"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["06"]["subTlvs"]["02"]["hex"] = "02"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["06"]["subTlvs"]["02"]["datatype"] = "hexstr"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["06"]["subTlvs"]["02"]["subTlvs"] = {}
-
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["06"]["subTlvs"]["03"] = {}
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["06"]["subTlvs"]["03"]["description"] = "ExplicitExtendedCMTSMICDigest"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["06"]["subTlvs"]["03"]["hex"] = "03"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["06"]["subTlvs"]["03"]["datatype"] = "hexstr"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["06"]["subTlvs"]["03"]["subTlvs"] = {}
-
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["07"] = {}
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["07"]["description"] = "SAVAuthorizationEncoding"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["07"]["hex"] = "07"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["07"]["datatype"] = "aggregate"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["07"]["subTlvs"] = {}
-
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["07"]["subTlvs"]["01"] = {}
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["07"]["subTlvs"]["01"]["description"] = "SAVGroupName"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["07"]["subTlvs"]["01"]["hex"] = "01"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["07"]["subTlvs"]["01"]["datatype"] = "string"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["07"]["subTlvs"]["01"]["subTlvs"] = {}
-
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["07"]["subTlvs"]["02"] = {}
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["07"]["subTlvs"]["02"]["description"] = "SAVStaticPrefixRule"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["07"]["subTlvs"]["02"]["hex"] = "02"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["07"]["subTlvs"]["02"]["datatype"] = "aggregate"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["07"]["subTlvs"]["02"]["subTlvs"] = {}
-
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["07"]["subTlvs"]["02"]["subTlvs"]["01"] = {}
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["07"]["subTlvs"]["02"]["subTlvs"]["01"]["description"] = "SAVStaticPrefixAddress"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["07"]["subTlvs"]["02"]["subTlvs"]["01"]["hex"] = "01"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["07"]["subTlvs"]["02"]["subTlvs"]["01"]["datatype"] = "ip_ip6"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["07"]["subTlvs"]["02"]["subTlvs"]["01"]["subTlvs"] = {}
-
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["07"]["subTlvs"]["02"]["subTlvs"]["02"] = {}
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["07"]["subTlvs"]["02"]["subTlvs"]["02"]["description"] = "SAVStaticPrefixLength"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["07"]["subTlvs"]["02"]["subTlvs"]["02"]["hex"] = "02"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["07"]["subTlvs"]["02"]["subTlvs"]["02"]["datatype"] = "uchar"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["07"]["subTlvs"]["02"]["subTlvs"]["02"]["subTlvs"] = {}
-
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["08"] = {}
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["08"]["description"] = "VendorIdentifier"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["08"]["hex"] = "08"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["08"]["datatype"] = "hexstr"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["08"]["subTlvs"] = {}
-
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["09"] = {}
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["09"]["description"] = "CMAttributeMasks"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["09"]["hex"] = "09"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["09"]["datatype"] = "aggregate"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["09"]["subTlvs"] = {}
-
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["09"]["subTlvs"]["01"] = {}
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["09"]["subTlvs"]["01"]["description"] = "CMDownstreamRequiredAttributeMask"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["09"]["subTlvs"]["01"]["hex"] = "01"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["09"]["subTlvs"]["01"]["datatype"] = "hexstr"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["09"]["subTlvs"]["01"]["subTlvs"] = {}
-
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["09"]["subTlvs"]["02"] = {}
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["09"]["subTlvs"]["02"]["description"] = "CMDownstreamForbiddenAttributeMask"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["09"]["subTlvs"]["02"]["hex"] = "02"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["09"]["subTlvs"]["02"]["datatype"] = "hexstr"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["09"]["subTlvs"]["02"]["subTlvs"] = {}
-
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["09"]["subTlvs"]["03"] = {}
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["09"]["subTlvs"]["03"]["description"] = "CMUpstreamRequiredAttributeMask"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["09"]["subTlvs"]["03"]["hex"] = "03"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["09"]["subTlvs"]["03"]["datatype"] = "hexstr"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["09"]["subTlvs"]["03"]["subTlvs"] = {}
-
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["09"]["subTlvs"]["04"] = {}
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["09"]["subTlvs"]["04"]["description"] = "CMUpstreamForbiddenAttributeMask"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["09"]["subTlvs"]["04"]["hex"] = "04"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["09"]["subTlvs"]["04"]["datatype"] = "hexstr"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["09"]["subTlvs"]["04"]["subTlvs"] = {}
-
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["10"] = {}
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["10"]["description"] = "IPMulticastJoinAuthorization"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["10"]["hex"] = "0a"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["10"]["datatype"] = "aggregate"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["10"]["subTlvs"] = {}
-
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["10"]["subTlvs"]["01"] = {}
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["10"]["subTlvs"]["01"]["description"] = "IPMulticastProfileName"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["10"]["subTlvs"]["01"]["hex"] = "01"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["10"]["subTlvs"]["01"]["datatype"] = "string"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["10"]["subTlvs"]["01"]["subTlvs"] = {}
-
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["10"]["subTlvs"]["02"] = {}
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["10"]["subTlvs"]["02"]["description"] = "IPMulticastJoinAuthStaticSessionRule"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["10"]["subTlvs"]["02"]["hex"] = "02"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["10"]["subTlvs"]["02"]["datatype"] = "aggregate"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["10"]["subTlvs"]["02"]["subTlvs"] = {}
-
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["10"]["subTlvs"]["02"]["subTlvs"]["01"] = {}
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["10"]["subTlvs"]["02"]["subTlvs"]["01"]["description"] = "MulticastRulePriority"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["10"]["subTlvs"]["02"]["subTlvs"]["01"]["hex"] = "01"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["10"]["subTlvs"]["02"]["subTlvs"]["01"]["datatype"] = "uchar"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["10"]["subTlvs"]["02"]["subTlvs"]["01"]["subTlvs"] = {}
-
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["10"]["subTlvs"]["02"]["subTlvs"]["02"] = {}
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["10"]["subTlvs"]["02"]["subTlvs"]["02"]["description"] = "AuthorizationAction"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["10"]["subTlvs"]["02"]["subTlvs"]["02"]["hex"] = "02"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["10"]["subTlvs"]["02"]["subTlvs"]["02"]["datatype"] = "uchar"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["10"]["subTlvs"]["02"]["subTlvs"]["02"]["subTlvs"] = {}
-
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["10"]["subTlvs"]["02"]["subTlvs"]["03"] = {}
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["10"]["subTlvs"]["02"]["subTlvs"]["03"]["description"] = "SourcePrefixAddress"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["10"]["subTlvs"]["02"]["subTlvs"]["03"]["hex"] = "03"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["10"]["subTlvs"]["02"]["subTlvs"]["03"]["datatype"] = "ip_ip6"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["10"]["subTlvs"]["02"]["subTlvs"]["03"]["subTlvs"] = {}
-
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["10"]["subTlvs"]["02"]["subTlvs"]["04"] = {}
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["10"]["subTlvs"]["02"]["subTlvs"]["04"]["description"] = "SourcePrefixLength"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["10"]["subTlvs"]["02"]["subTlvs"]["04"]["hex"] = "04"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["10"]["subTlvs"]["02"]["subTlvs"]["04"]["datatype"] = "uchar"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["10"]["subTlvs"]["02"]["subTlvs"]["04"]["subTlvs"] = {}
-
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["10"]["subTlvs"]["02"]["subTlvs"]["05"] = {}
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["10"]["subTlvs"]["02"]["subTlvs"]["05"]["description"] = "GroupPrefixAddress"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["10"]["subTlvs"]["02"]["subTlvs"]["05"]["hex"] = "05"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["10"]["subTlvs"]["02"]["subTlvs"]["05"]["datatype"] = "ip_ip6"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["10"]["subTlvs"]["02"]["subTlvs"]["05"]["subTlvs"] = {}
-
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["10"]["subTlvs"]["02"]["subTlvs"]["06"] = {}
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["10"]["subTlvs"]["02"]["subTlvs"]["06"]["description"] = "GroupPrefixLength"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["10"]["subTlvs"]["02"]["subTlvs"]["06"]["hex"] = "06"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["10"]["subTlvs"]["02"]["subTlvs"]["06"]["datatype"] = "uchar"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["10"]["subTlvs"]["02"]["subTlvs"]["06"]["subTlvs"] = {}
-
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["10"]["subTlvs"]["03"] = {}
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["10"]["subTlvs"]["03"]["description"] = "MaximumMulticastSessions"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["10"]["subTlvs"]["03"]["hex"] = "03"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["10"]["subTlvs"]["03"]["datatype"] = "ushort"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["10"]["subTlvs"]["03"]["subTlvs"] = {}
-
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["11"] = {}
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["11"]["description"] = "ServiceTypeIdentifier"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["11"]["hex"] = "0b"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["11"]["datatype"] = "string"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["11"]["subTlvs"] = {}
-
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["12"] = {}
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["12"]["description"] = "DEMARCAutoConfiguration"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["12"]["hex"] = "0c"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["12"]["datatype"] = "aggregate"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["12"]["subTlvs"] = {}
-
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["12"]["subTlvs"]["01"] = {}
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["12"]["subTlvs"]["01"]["description"] = "DACDisableEnableConfig"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["12"]["subTlvs"]["01"]["hex"] = "01"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["12"]["subTlvs"]["01"]["datatype"] = "uchar"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["12"]["subTlvs"]["01"]["subTlvs"] = {}
-
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["12"]["subTlvs"]["02"] = {}
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["12"]["subTlvs"]["02"]["description"] = "CMIMEncoding"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["12"]["subTlvs"]["02"]["hex"] = "02"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["12"]["subTlvs"]["02"]["datatype"] = "hexstr"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["12"]["subTlvs"]["02"]["subTlvs"] = {}
-
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["12"]["subTlvs"]["03"] = {}
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["12"]["subTlvs"]["03"]["description"] = "UpstreamServiceClassName"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["12"]["subTlvs"]["03"]["hex"] = "03"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["12"]["subTlvs"]["03"]["datatype"] = "strzero"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["12"]["subTlvs"]["03"]["subTlvs"] = {}
-
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["12"]["subTlvs"]["04"] = {}
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["12"]["subTlvs"]["04"]["description"] = "DownstreamServiceClassName"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["12"]["subTlvs"]["04"]["hex"] = "04"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["12"]["subTlvs"]["04"]["datatype"] = "strzero"
-DocsisTlvs["24"]["subTlvs"]["43"]["subTlvs"]["12"]["subTlvs"]["04"]["subTlvs"] = {}
-*/

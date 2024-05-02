@@ -18,10 +18,13 @@ pub(crate) fn decode(tlv: TLV, d4: HashMap<u8, DOCSIS4TLV>) -> Result<DOCSIS4TLV
                 let d4sub = d4.get(&ret.t).unwrap().clone();
                 while i < tlv.v.len() {
                     let stlv = TLV { t: tlv.v[i], l: tlv.v[i + 1], v: tlv.v[i + 2..i + 2 + tlv.v[i + 1] as usize].to_vec(), sub_tlvs: Vec::new() };
-                    let this_d4 = decode(stlv, d4sub.sub_tlvs.clone());
+                    let this_d4 = decode(stlv.clone(), d4sub.sub_tlvs.clone());
                     if this_d4.is_ok() {
                         let this_d4_unwrapped = this_d4.unwrap();
                         ret.sub_tlvs.insert(this_d4_unwrapped.t, this_d4_unwrapped);
+                    }
+                    else{
+                        println!("Could not decode: {}.{}", ret.t, stlv.t);
                     }
                     i += 2 + tlv.v[i + 1] as usize;
                 }

@@ -2,6 +2,11 @@ mod docsis;
 mod tlv;
 mod d4;
 mod mib;
+mod flows;
+mod drop_classifiers;
+mod vendor_specific;
+mod erouter;
+mod packet_classifiers;
 
 use std::{env};
 use getopts::Options;
@@ -72,74 +77,13 @@ fn main() {
         i += 2 + l as usize;
     }
     for tlv in tlv_list.tlvs {
-        let this_d4 = docsis::decode(tlv, d4d.clone());
+        let this_d4 = docsis::decode(tlv.clone(), d4d.clone());
         if this_d4.is_ok() {
             let this_d4_unwrapped = this_d4.unwrap();
-            match this_d4_unwrapped.data_type {
-                DATATYPE::UCHAR => {
-                    print!("TLV: {}: {}  ", this_d4_unwrapped.t, this_d4_unwrapped.description);
-                    println!("Decoded: {}", this_d4_unwrapped.get_int_value().unwrap());
-                },
-                DATATYPE::UINT => {
-                    print!("TLV: {}: {}  ", this_d4_unwrapped.t, this_d4_unwrapped.description);
-                    println!("Decoded: {}", this_d4_unwrapped.get_int_value().unwrap());
-                },
-                DATATYPE::STRING => {
-                    print!("TLV: {}: {}  ", this_d4_unwrapped.t, this_d4_unwrapped.description);
-                    println!("Decoded: {}", this_d4_unwrapped.get_string_value().unwrap());
-                }
-                DATATYPE::MIB => {
-                    print!("TLV: {}: {}  ", this_d4_unwrapped.t, this_d4_unwrapped.description);
-                    // println!("Decoded: {}", this_d4_unwrapped.get_mib_value().unwrap());
-                    if this_d4_unwrapped.mib.is_none() {
-                        print!("MIB TLV, but mib data is missing  ");
-                    }
-                    else {
-                        let mb = this_d4_unwrapped.mib.unwrap();
-                        let mbname = miblist.get_mib(mb.oid.as_str());
-                        if mbname.is_some() {
-                            println!("MIB: {} ({}): <{}> {}: {:?}", mb.oid, mbname.unwrap().name, mb.datatype, mb.index, mb.translate_value());
-                        } else {
-                            println!("MIB: {} ({}): <{}> {}: {:?}", mb.oid, "Unknown MIB", mb.datatype, mb.index, mb.translate_value());
-                        }
-                    }
-                }
-                DATATYPE::AGGREGATE => {
-                    println!("TLV: {}: {}", this_d4_unwrapped.t, this_d4_unwrapped.description);
-                    for (_, stlv) in this_d4_unwrapped.sub_tlvs {
-                    if stlv.tlv.v != vec![] {
-                        print!("\tSub-TLV: {}: {} (bytes: {:?})  ", stlv.t, stlv.description, stlv.tlv.v);
-                        match stlv.data_type {
-
-                            DATATYPE::UCHAR => {
-                                println!("Decoded: {}", stlv.get_int_value().unwrap());
-                            },
-                            DATATYPE::UINT => {
-                                println!("Decoded: {}", stlv.get_int_value().unwrap());
-                            },
-                            DATATYPE::USHORT => {
-                                println!("Decoded: {}", stlv.get_int_value().unwrap());
-                            },
-                            DATATYPE::STRING => {
-                                println!("Decoded: {}", stlv.get_string_value().unwrap());
-                            }
-                            DATATYPE::STRINGZERO => {
-                                println!("Decoded: {}", stlv.get_string_value().unwrap());
-                            }
-                            //_ => {}
-                            DATATYPE::AGGREGATE => {
-                                println!("Aggregate");
-                            }
-                            DATATYPE::MIB => {
-                                println!("MIB");
-                            }
-                        }
-                    }
-
-                    }
-                }
-                _ => {}
-            }
+            // println!("{}", this_d4_unwrapped);
+        }
+        else {
+            println!("Error decoding TLV: {}", tlv.t);
         }
     }
 }
