@@ -3,9 +3,11 @@ use std::collections::HashMap;
 use rustc_serialize::json::Json;
 use std::fs::File;
 use std::io::Read;
+use serde::Serialize;
 use crate::d4::DATATYPE;
 
 #[derive(Clone)]
+#[derive(Serialize)]
 pub(crate) struct MIB {
     pub(crate) name: String,
     pub(crate) description: String,

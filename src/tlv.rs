@@ -1,6 +1,8 @@
 use std::fmt;
+use serde::Serialize;
 
 #[derive(Debug, Clone)]
+#[derive(Serialize)]
 pub(crate) struct TLV {
     pub(crate) t: u8,
     pub(crate) l: u8,

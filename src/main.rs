@@ -15,6 +15,8 @@ use std::path::Path;
 use std::io::prelude::*;
 // use std::io;
 use directories::UserDirs;
+use serde::Serialize;
+use serde_json::{Result, to_string};
 
 use crate::d4::{d4_defs, DATATYPE};
 // use crate::MIB::MIB;
@@ -58,9 +60,10 @@ fn main() {
     let mut tlv_list = tlv::TLVList { tlvs: Vec::new() };
     let d4d = d4_defs();
     println!("File: {}", filename);
-    let mut f = File::open(filename).unwrap();
+    let mut f = File::open(&filename).unwrap();
 
     let mut buffer = Vec::new();
+    let mut out_buffer :Vec<u8> = Vec::new();
     // read the whole file
     f.read_to_end(&mut buffer).unwrap();
     let mut i = 0;
@@ -79,11 +82,34 @@ fn main() {
     for tlv in tlv_list.tlvs {
         let this_d4 = docsis::decode(tlv.clone(), d4d.clone());
         if this_d4.is_ok() {
-            let this_d4_unwrapped = this_d4.unwrap();
-            println!("{}", this_d4_unwrapped);
+            let mut this_d4_unwrapped = this_d4.unwrap();
+            let s = to_string(&this_d4_unwrapped);
+            if s.is_ok() {
+                println!("{}", s.unwrap());
+            }
+            else {
+                println!("Error serializing TLV: {}", tlv.t);
+            }
+            // println!("{}", this_d4_unwrapped);
+            // if this_d4_unwrapped.t == 0x12 {
+            //     println!("{}", this_d4_unwrapped);
+            //     let old_value = this_d4_unwrapped.get_int_value().unwrap();
+            //     this_d4_unwrapped.set_uint_value(old_value * 4u32).expect("TODO: panic message");
+            //     println!("{}", this_d4_unwrapped);
+            // }
+            // out_buffer.push(this_d4_unwrapped.tlv.t);
+            // out_buffer.push(this_d4_unwrapped.tlv.l);
+            // for b in this_d4_unwrapped.tlv.v {
+            //     out_buffer.push(b);
+            // }
         }
         else {
             println!("Error decoding TLV: {}", tlv.t);
         }
     }
+
+    // save a modified file
+    // let mut out = File::create(format!("{}-new", &filename)).unwrap();
+    // out.write_all(&out_buffer).unwrap();
+
 }

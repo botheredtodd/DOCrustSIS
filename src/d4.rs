@@ -1,8 +1,10 @@
 //Some TLV information for DOCSIS 4
+// use error_chain::error_chain;
 
 use std::cmp::PartialEq;
 use std::collections::HashMap;
-use std::fmt::Display;
+use std::fmt::{Display};
+use std::io::Error;
 use std::path::Path;
 use directories::UserDirs;
 use crate::tlv::TLV;
@@ -13,6 +15,13 @@ use crate::mib;
 use crate::vendor_specific::docsis_vendor_specific;
 use crate::erouter::erouter;
 use crate::packet_classifiers::packet_classifiers;
+use serde::ser::{Serialize, Serializer, SerializeStruct};
+// error_chain! {
+//     foreign_links {
+//         Io(std::io::Error);
+//     }
+// }
+
 
 #[derive(Clone)]
 pub(crate) enum DATATYPE {
@@ -30,9 +39,36 @@ pub(crate) enum DATATYPE {
     ENCODE_IP,
     ENCODE_MAC,
 
-
 }
+
+impl Serialize for crate::d4::DATATYPE {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+        where
+            S: Serializer,
+    {
+        let mut state = serializer.serialize_struct("DATATYPE", 3)?;
+        match self {
+            DATATYPE::UCHAR => { state.serialize_field("DATATYPE", "UCHAR")? }
+            DATATYPE::UINT => { state.serialize_field("DATATYPE", "UINT")? }
+            DATATYPE::USHORT => { state.serialize_field("DATATYPE", "USHORT")? }
+            DATATYPE::STRING => { state.serialize_field("DATATYPE", "STRING")? }
+            DATATYPE::STRINGZERO => { state.serialize_field("DATATYPE", "STRINGZERO")? }
+            DATATYPE::AGGREGATE => { state.serialize_field("DATATYPE", "AGGREGATE")? }
+            DATATYPE::MIB => { state.serialize_field("DATATYPE", "MIB")? }
+            DATATYPE::HEXSTR => { state.serialize_field("DATATYPE", "HEXSTR")? }
+            DATATYPE::MD5 => { state.serialize_field("DATATYPE", "MD5")? }
+            DATATYPE::LENZERO => { state.serialize_field("DATATYPE", "LENZERO")? }
+            DATATYPE::DUAL_QTAG => { state.serialize_field("DATATYPE", "DUAL_QTAG")? }
+            DATATYPE::ENCODE_IP => { state.serialize_field("DATATYPE", "ENCODE_IP")? }
+            DATATYPE::ENCODE_MAC => { state.serialize_field("DATATYPE", "ENCODE_MAC")? }
+        }
+        state.end()
+    }
+}
+
+
 #[derive(Clone)]
+
 pub(crate) struct DOCSIS4TLV {
     pub(crate) t: u8,
     pub(crate) description: String,
@@ -41,6 +77,36 @@ pub(crate) struct DOCSIS4TLV {
     pub(crate) sub_tlvs: HashMap<u8, DOCSIS4TLV>,
     pub(crate) mib: Option<MIB>,
 }
+
+
+impl Serialize for DOCSIS4TLV {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        // 3 is the number of fields in the struct.
+        let mut state = serializer.serialize_struct("DOCSIS4TLV", 3)?;
+        state.serialize_field("Description", &self.description)?;
+        state.serialize_field("Type", &self.t)?;
+        state.serialize_field("Length", &self.tlv.l)?;
+        state.serialize_field("Value", &self.tlv.v)?;
+        state.serialize_field("Data Type", &self.data_type)?;
+        if vec![DATATYPE::AGGREGATE].contains(&self.data_type)  {
+            state.serialize_field("Sub TLVs", &self.sub_tlvs)?;
+        }
+        else if vec![DATATYPE::MIB].contains(&self.data_type) {
+            state.serialize_field("MIB", &self.mib)?;
+        }
+            else if vec![DATATYPE::DUAL_QTAG] .contains(&self.data_type){
+            state.serialize_field("Decoded Value", "No idea at this point")?;
+            }
+        else {
+            state.serialize_field("Decoded Value", &self.get_string_value().unwrap())?;
+        }
+        state.end()
+    }
+}
+
 impl Default for DOCSIS4TLV {
     fn default() -> DOCSIS4TLV {
         DOCSIS4TLV {
@@ -171,46 +237,70 @@ impl DOCSIS4TLV {
                 Ok(v)
             },
             DATATYPE::STRING => {
-                Err("Not a number".to_string())
+                Err("Not a number".to_string().into())
             },
             DATATYPE::STRINGZERO => {
-                Err("Not a number".to_string())
+                Err("Not a number".to_string().into())
             },
             DATATYPE::HEXSTR => {
-                Err("Not a number".to_string())
+                Err("Not a number".to_string().into())
             },
             DATATYPE::ENCODE_IP => {
-                Err("Not a number".to_string())
+                Err("Not a number".to_string().into())
             },
             DATATYPE::ENCODE_MAC => {
-                Err("Not a number".to_string())
+                Err("Not a number".to_string().into())
             },
             DATATYPE::AGGREGATE => {
-                Err("Sub TLVs not working yet".to_string())
+                Err("Sub TLVs not working yet".to_string().into())
             },
             DATATYPE::MIB => {
                 // let _ = MIB::from_bytes(self.tlv.v);
-                Err("Not yet supported".to_string())
+                Err("Not yet supported".to_string().into())
             }
             DATATYPE::MD5 => {
-                Err("Not a number".to_string())
+                Err("Not a number".to_string().into())
             },
             _ => {
-                Err("Not yet supported".to_string())
+                Err("Not yet supported".to_string().into())
             }
         }
     }
 
-    pub(crate) fn set_int_value(&mut self, v: i32) -> Result<i32, String> {
+    pub(crate) fn set_uint_value(&mut self, v: u32) -> Result<u32, String> {
         match self.data_type{
+
+            DATATYPE::MD5 => {
+                Err("Not a number".to_string().into())
+            },
+            DATATYPE::ENCODE_IP => {
+                Err("Not a number".to_string().into())
+            },
+            DATATYPE::ENCODE_MAC => {
+                Err("Not a number".to_string().into())
+            },
+            DATATYPE::STRING => {
+                Err("Not a number".to_string().into())
+            },
+            DATATYPE::HEXSTR => {
+                Err("Not a number".to_string().into())
+            },
+            DATATYPE::STRINGZERO => {
+                Err("Not a number".to_string().into())
+            },
+            DATATYPE::AGGREGATE => {
+                Err("Sub TLVs not working yet".to_string().into())
+            },
             DATATYPE::UCHAR => {
-                let mut v = v;
+                let mut nv = v;
                 let mut l = 0;
-                while v > 0 {
+                while nv > 0 {
                     l += 1;
-                    v = v >> 8;
+                    nv = nv >> 8;
                 }
                 let mut v = v;
+                println!("Setting value from {} to {}", self.get_int_value().unwrap(), v);
+                self.tlv.v = Vec::new();
                 for i in 0..l {
                     self.tlv.v.push((v & 0xFF) as u8);
                     v = v >> 8;
@@ -219,13 +309,15 @@ impl DOCSIS4TLV {
                 Ok(v)
             },
             DATATYPE::UINT => {
-                let mut v = v;
+                let mut nv = v;
                 let mut l = 0;
-                while v > 0 {
+                while nv > 0 {
                     l += 1;
-                    v = v >> 8;
+                    nv = nv >> 8;
                 }
                 let mut v = v;
+                println!("Setting value from {} to {}", self.get_int_value().unwrap(), v);
+                self.tlv.v = Vec::new();
                 for i in 0..l {
                     self.tlv.v.push((v & 0xFF) as u8);
                     v = v >> 8;
@@ -234,13 +326,15 @@ impl DOCSIS4TLV {
                 Ok(v)
             },
             DATATYPE::USHORT => {
-                let mut v = v;
+                let mut nv = v;
                 let mut l = 0;
-                while v > 0 {
+                while nv > 0 {
                     l += 1;
-                    v = v >> 8;
+                    nv = nv >> 8;
                 }
                 let mut v = v;
+                println!("Setting value from {} to {}", self.get_int_value().unwrap(), v);
+                self.tlv.v = Vec::new();
                 for i in 0..l {
                     self.tlv.v.push((v & 0xFF) as u8);
                     v = v >> 8;
@@ -248,29 +342,8 @@ impl DOCSIS4TLV {
                 self.tlv.l = l;
                 Ok(v)
             },
-            DATATYPE::MD5 => {
-                Err("Not a number".to_string())
-            },
-            DATATYPE::ENCODE_IP => {
-                Err("Not a number".to_string())
-            },
-            DATATYPE::ENCODE_MAC => {
-                Err("Not a number".to_string())
-            },
-            DATATYPE::STRING => {
-                Err("Not a number".to_string())
-            },
-            DATATYPE::HEXSTR => {
-                Err("Not a number".to_string())
-            },
-            DATATYPE::STRINGZERO => {
-                Err("Not a number".to_string())
-            },
-            DATATYPE::AGGREGATE => {
-                Err("Sub TLVs not working yet".to_string())
-            },
             _ => {
-                Err("Not yet supported".to_string())
+                Err("Not yet supported".to_string().into())
             }
         }
 
@@ -350,24 +423,28 @@ impl DOCSIS4TLV {
                 Ok(s)
             },
             DATATYPE::AGGREGATE => {
-                Err("Sub TLVs not working yet".to_string())
+                Err("Sub TLVs not working yet".to_string().into())
             },
-            _ => {
-                Err("Not yet supported".to_string())
-            }
+
+            // _ => {
+            //     Err("Not yet supported".to_string().into())
+            // }
+            DATATYPE::MIB => {Err("MIBs not yet supported".to_string().into())}
+            DATATYPE::LENZERO => {Ok("Zero Length TLV".to_string())}
+            DATATYPE::DUAL_QTAG => {Err("DUAL_QTAG not yet supported".to_string().into())}
         }
     }
     fn display_agg(&self) -> String {
         let mut s = String::new();
         s.push_str(format!("TLV: {}: {}", self.t, self.description).as_str());
         for (_, v) in self.sub_tlvs.iter() {
-            if v.tlv.v != Vec::new() {
+            if v.tlv.v != Vec::<u8>::new() {
                 if v.data_type != DATATYPE::AGGREGATE {
                     s.push_str(format!("\n\tSub {}", v).as_str());
                 } else {
                     s.push_str(format!("\n\tSub {} has its own sub tlvs", v.t).as_str());
                     for (_, sv) in v.sub_tlvs.iter() {
-                        if sv.tlv.v != Vec::new() {
+                        if sv.tlv.v != Vec::<u8>::new() {
                             if sv.data_type == DATATYPE::AGGREGATE {
                                 s.push_str(format!("\n\t\tSub Sub {} has even more sub sub subs, and that's just crazy", sv.t).as_str());
                             } else {
