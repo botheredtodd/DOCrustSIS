@@ -84,12 +84,18 @@ impl Serialize for DOCSIS4TLV {
     where
         S: Serializer,
     {
-        // 3 is the number of fields in the struct.
+        let mut bytes = "".to_string();
+        for i in 0..self.tlv.l {
+            bytes.push_str(format!("{:02x}", self.tlv.v[i as usize]).as_str());
+            if i < self.tlv.l - 1 {
+                bytes.push_str(":");
+            }
+        }
         let mut state = serializer.serialize_struct("DOCSIS4TLV", 3)?;
         state.serialize_field("Description", &self.description)?;
         state.serialize_field("Type", &self.t)?;
         state.serialize_field("Length", &self.tlv.l)?;
-        state.serialize_field("Value", &self.tlv.v)?;
+        state.serialize_field("Value", &bytes)?;
         state.serialize_field("Data Type", &self.data_type)?;
         if vec![DATATYPE::AGGREGATE].contains(&self.data_type)  {
             state.serialize_field("Sub TLVs", &self.sub_tlvs)?;
@@ -417,7 +423,7 @@ impl DOCSIS4TLV {
             },
             DATATYPE::STRINGZERO => {
                 let mut s = String::new();
-                for i in 0..self.tlv.l {
+                for i in 0..(self.tlv.l - 1) {
                     s.push_str(format!("{}", self.tlv.v[i as usize] as char).as_str());
                 }
                 Ok(s)
@@ -433,6 +439,62 @@ impl DOCSIS4TLV {
             DATATYPE::LENZERO => {Ok("Zero Length TLV".to_string())}
             DATATYPE::DUAL_QTAG => {Err("DUAL_QTAG not yet supported".to_string().into())}
         }
+    }
+    fn set_string_value(&mut self, value: String) -> Result<String, String>{
+        match self.data_type{
+            DATATYPE::UCHAR => {
+                Err("Not a string".to_string().into())
+            },
+            DATATYPE::UINT => {
+                Err("Not a string".to_string().into())
+            },
+            DATATYPE::USHORT => {
+                Err("Not a string".to_string().into())
+            },
+            DATATYPE::STRING => {
+                self.tlv.v = Vec::new();
+                for c in value.chars() {
+                    self.tlv.v.push(c as u8);
+                }
+                Ok(value)
+            },
+            DATATYPE::STRINGZERO => {
+                self.tlv.v = Vec::new();
+                for c in value.chars() {
+                    self.tlv.v.push(c as u8);
+                }
+                self.tlv.v.push(0);
+                Ok(value)
+            },
+            DATATYPE::HEXSTR => {
+                self.tlv.v = Vec::new();
+                for c in value.chars() {
+                    self.tlv.v.push(c as u8);
+                }
+                Ok(value)
+            },
+            DATATYPE::ENCODE_IP => {
+                Err("IPs not yet supported".to_string().into())
+            },
+            DATATYPE::ENCODE_MAC => {
+                Err("MAC addresses not yet supported".to_string().into())
+            },
+            DATATYPE::AGGREGATE => {
+                Err("Sub TLVs not working yet".to_string().into())
+            },
+            DATATYPE::MIB => {
+                // let _ = MIB::from_bytes(self.tlv.v);
+                Err("Not yet supported".to_string().into())
+            }
+            DATATYPE::MD5 => {
+                Err("Not a string".to_string().into())
+            },
+            _ => {
+                Err("Not yet supported".to_string().into())
+            }
+
+        }
+
     }
     fn display_agg(&self) -> String {
         let mut s = String::new();

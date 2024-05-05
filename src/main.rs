@@ -85,7 +85,8 @@ fn main() {
             let mut this_d4_unwrapped = this_d4.unwrap();
             let s = to_string(&this_d4_unwrapped);
             if s.is_ok() {
-                println!("{}", s.unwrap());
+                println!("{}", serde_json::to_string_pretty(&this_d4_unwrapped).unwrap());
+                // println!("{}", s.unwrap());
             }
             else {
                 println!("Error serializing TLV: {}", tlv.t);
