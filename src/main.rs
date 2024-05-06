@@ -38,9 +38,13 @@ fn main() {
 
     let args: Vec<String> = env::args().collect();
     let program = args[0].clone();
+    let mut to_terminal = true;
 
     let mut opts = Options::new();
     opts.optopt("f", "file", "A DOCSIS, MTA, or STB config file", "Config File");
+    opts.optflag("j", "json", "Use JSON format for input/output (Default). if no file is specified, it will output to the terminal", "JSON formatting");
+    opts.optflag("d", "decode", "Decode the config file provided", "Decode");
+    opts.optflag("c", "create", "Create the specifiedconfig file using the rovided JSON file", "Decode");
     opts.optflag("h", "help", "print this help menu");
     let matches = match opts.parse(&args[1..]) {
         Ok(m) => { m }
@@ -55,6 +59,14 @@ fn main() {
         matches.opt_str("f").unwrap().clone()
     } else {
         println!("You must provide a file to parse");
+        std::process::exit(1);
+    };
+    let textfile = if matches.opt_present("j")
+    {
+        matches.opt_str("j").unwrap().clone()
+        to_terminal = false;
+    } else {
+        println!("You must provide a file for in");
         std::process::exit(1);
     };
     let mut tlv_list = tlv::TLVList { tlvs: Vec::new() };
@@ -85,8 +97,10 @@ fn main() {
             let mut this_d4_unwrapped = this_d4.unwrap();
             let s = to_string(&this_d4_unwrapped);
             if s.is_ok() {
-                println!("{}", serde_json::to_string_pretty(&this_d4_unwrapped).unwrap());
+                if to_terminal {
+                    println!("{}", serde_json::to_string_pretty(&this_d4_unwrapped).unwrap());
                 // println!("{}", s.unwrap());
+                }
             }
             else {
                 println!("Error serializing TLV: {}", tlv.t);
