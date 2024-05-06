@@ -107,7 +107,12 @@ impl Serialize for DOCSIS4TLV {
             state.serialize_field("Decoded Value", "No idea at this point")?;
             }
         else {
-            state.serialize_field("Decoded Value", &self.get_string_value().unwrap())?;
+            if self.get_string_value().is_ok() {
+                state.serialize_field("Decoded Value", &self.get_string_value().unwrap())?;
+            }
+            else {
+                state.serialize_field("Decoded Value", "Could not decode")?;
+            }
         }
         state.end()
     }
@@ -423,6 +428,9 @@ impl DOCSIS4TLV {
             },
             DATATYPE::STRINGZERO => {
                 let mut s = String::new();
+                if self.tlv.l <= 1 {
+                    return Err("String length is zero".to_string().into());
+                }
                 for i in 0..(self.tlv.l - 1) {
                     s.push_str(format!("{}", self.tlv.v[i as usize] as char).as_str());
                 }
