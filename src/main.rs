@@ -11,12 +11,12 @@ mod packet_classifiers;
 use std::{env};
 use getopts::Options;
 use std::fs::File;
-use std::path::Path;
+// use std::path::Path;
 use std::io::prelude::*;
 // use std::io;
-use directories::UserDirs;
-use serde::Serialize;
-use serde_json::{to_string};
+// use directories::UserDirs;
+// use serde::Serialize;
+// use serde_json::{to_string};
 
 use crate::d4::{d4_defs};
 // use crate::MIB::MIB;
@@ -29,12 +29,12 @@ fn print_usage(program: &str, opts: Options) {
 
 
 fn main() {
-    let filename = format!("{}/.mibs.json", UserDirs::new().unwrap().home_dir().to_str().unwrap());
-    let mut miblist = mib::MIBList::new();
-    if Path::new(filename.as_str()).exists() {
-        println!("Loading MIBs from: {}", filename);
-        miblist = mib::MIBList::from_file(filename.as_str());
-    }
+    // let filename = format!("{}/.mibs.json", UserDirs::new().unwrap().home_dir().to_str().unwrap());
+    // let mut miblist = mib::MIBList::new();
+    // if Path::new(filename.as_str()).exists() {
+    //     println!("Loading MIBs from: {}", filename);
+    //     miblist = mib::MIBList::from_file(filename.as_str());
+    // }
 
     let args: Vec<String> = env::args().collect();
     let program = args[0].clone();
@@ -66,7 +66,7 @@ fn main() {
         println!("You must provide a file to parse");
         std::process::exit(1);
     };
-    let textfile = if matches.opt_present("j")
+    let text_file = if matches.opt_present("j")
     {
         to_terminal = false;
         matches.opt_str("j").unwrap().clone()
@@ -80,7 +80,7 @@ fn main() {
         let mut f = File::open(&filename).unwrap();
 
         let mut buffer = Vec::new();
-        let mut out_buffer: Vec<u8> = Vec::new();
+
         // read the whole file
         f.read_to_end(&mut buffer).unwrap();
         let mut i = 0;
@@ -88,7 +88,7 @@ fn main() {
             let t = buffer[i];
             let l = buffer[i + 1];
             let mut v = Vec::new();
-            let mut sub: Vec<tlv::TLV> = Vec::new();
+            let  sub: Vec<tlv::TLV> = Vec::new();
             for j in 0..l {
                 v.push(buffer[i + 2 + j as usize]);
             }
@@ -133,7 +133,7 @@ fn main() {
             if to_terminal {
                 println!("{}", s.unwrap());
             } else {
-                let mut out = File::create(format!("{}", &textfile)).unwrap();
+                let mut out = File::create(format!("{}", &text_file)).unwrap();
                 out.write_all(s.unwrap().as_bytes()).unwrap();
             }
         } else {
@@ -141,8 +141,9 @@ fn main() {
         }
     }
 else {
-    //TODO: Implement the deserialize function for DOCIS4TLV
+    //TODO: Implement the deserialize function for DOCSIS4TLV
     println!("Working on it...");
+    //    let mut out_buffer: Vec<u8> = Vec::new();
     //     let mut f = File::open(&textfile).unwrap();
     //     let mut data = String::new();
     //     f.read_to_string(&mut data).unwrap();

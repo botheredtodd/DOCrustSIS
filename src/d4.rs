@@ -4,7 +4,6 @@
 use std::cmp::PartialEq;
 use std::collections::HashMap;
 use std::fmt::{Display};
-use std::io::Error;
 use std::path::Path;
 use directories::UserDirs;
 use crate::tlv::TLV;
@@ -312,7 +311,7 @@ impl DOCSIS4TLV {
                 let mut v = v;
                 println!("Setting value from {} to {}", self.get_int_value().unwrap(), v);
                 self.tlv.v = Vec::new();
-                for i in 0..l {
+                for _ in 0..l {
                     self.tlv.v.push((v & 0xFF) as u8);
                     v = v >> 8;
                 }
@@ -329,7 +328,7 @@ impl DOCSIS4TLV {
                 let mut v = v;
                 println!("Setting value from {} to {}", self.get_int_value().unwrap(), v);
                 self.tlv.v = Vec::new();
-                for i in 0..l {
+                for _ in 0..l {
                     self.tlv.v.push((v & 0xFF) as u8);
                     v = v >> 8;
                 }
@@ -346,7 +345,7 @@ impl DOCSIS4TLV {
                 let mut v = v;
                 println!("Setting value from {} to {}", self.get_int_value().unwrap(), v);
                 self.tlv.v = Vec::new();
-                for i in 0..l {
+                for _ in 0..l {
                     self.tlv.v.push((v & 0xFF) as u8);
                     v = v >> 8;
                 }
@@ -601,7 +600,7 @@ impl Display for DOCSIS4TLV {
 }
 pub(crate) fn d4_defs() -> HashMap<u8, DOCSIS4TLV> {
     let mut d4_defs = HashMap::new();
-    let mut tlv = DOCSIS4TLV {
+    let  tlv = DOCSIS4TLV {
         t: 0x01,
         description: "DownstreamFrequency".to_string(),
         data_type: DATATYPE::UINT,
@@ -610,7 +609,7 @@ pub(crate) fn d4_defs() -> HashMap<u8, DOCSIS4TLV> {
         mib: None,
     };
     d4_defs.insert(tlv.t, tlv);
-    let mut tlv = DOCSIS4TLV {
+    let  tlv = DOCSIS4TLV {
         t: 0x02,
         description: "UpstreamChannelId".to_string(),
         data_type: DATATYPE::UCHAR,
@@ -619,7 +618,7 @@ pub(crate) fn d4_defs() -> HashMap<u8, DOCSIS4TLV> {
         mib: None,
     };
     d4_defs.insert(tlv.t, tlv);
-    let mut tlv = DOCSIS4TLV {
+    let  tlv = DOCSIS4TLV {
         t: 0x03,
         description: "NetworkAccess".to_string(),
         data_type: DATATYPE::UCHAR,
@@ -628,7 +627,7 @@ pub(crate) fn d4_defs() -> HashMap<u8, DOCSIS4TLV> {
         mib: None,
     };
     d4_defs.insert(tlv.t, tlv);
-    let mut tlv = DOCSIS4TLV {
+    let  tlv = DOCSIS4TLV {
         t: 0x06,
         description: "CmMic".to_string(),
         data_type: DATATYPE::MD5,
@@ -637,7 +636,7 @@ pub(crate) fn d4_defs() -> HashMap<u8, DOCSIS4TLV> {
         mib: None,
     };
     d4_defs.insert(tlv.t, tlv);
-    let mut tlv = DOCSIS4TLV {
+    let  tlv = DOCSIS4TLV {
         t: 0x07,
         description: "CmMic".to_string(),
         data_type: DATATYPE::MD5,
@@ -647,7 +646,7 @@ pub(crate) fn d4_defs() -> HashMap<u8, DOCSIS4TLV> {
     };
     d4_defs.insert(tlv.t, tlv);
 
-    let mut tlv = DOCSIS4TLV {
+    let  tlv = DOCSIS4TLV {
         t: 0x0b,
         description: "SnmpMibObject".to_string(),
         data_type: DATATYPE::MIB,
@@ -751,7 +750,7 @@ pub(crate) fn d4_defs() -> HashMap<u8, DOCSIS4TLV> {
     d4_defs.insert(tlv.t, tlv);
 
 
-    let mut tlv = DOCSIS4TLV {
+    let  tlv = DOCSIS4TLV {
         t: 0x12,
         description: "MaxCPE".to_string(),
         data_type: DATATYPE::UCHAR,
@@ -761,7 +760,7 @@ pub(crate) fn d4_defs() -> HashMap<u8, DOCSIS4TLV> {
     };
     d4_defs.insert(tlv.t, tlv);
 
-    let mut tlv = DOCSIS4TLV {
+    let  tlv = DOCSIS4TLV {
         t: 0x16,
         description: "UsPacketClass".to_string(),
         data_type: DATATYPE::AGGREGATE,
@@ -770,7 +769,7 @@ pub(crate) fn d4_defs() -> HashMap<u8, DOCSIS4TLV> {
         mib: None,
         };
     d4_defs.insert(tlv.t, tlv);
-    let mut tlv = DOCSIS4TLV {
+    let  tlv = DOCSIS4TLV {
         t: 0x17,
         description: "DsPacketClass".to_string(),
         data_type: DATATYPE::AGGREGATE,
@@ -783,7 +782,7 @@ pub(crate) fn d4_defs() -> HashMap<u8, DOCSIS4TLV> {
 //Upstream Service Flow
 
 
-    let mut tlv = DOCSIS4TLV {
+    let  tlv = DOCSIS4TLV {
         t: 0x18,
         description: "UsServiceFlow".to_string(),
         data_type: DATATYPE::AGGREGATE,
@@ -794,7 +793,7 @@ pub(crate) fn d4_defs() -> HashMap<u8, DOCSIS4TLV> {
     d4_defs.insert(tlv.t, tlv);
 
 //Downstream Service Flow
-    let mut tlv = DOCSIS4TLV {
+    let  tlv = DOCSIS4TLV {
         t: 0x19,
         description: "DsServiceFlow".to_string(),
         data_type: DATATYPE::AGGREGATE,
@@ -804,7 +803,7 @@ pub(crate) fn d4_defs() -> HashMap<u8, DOCSIS4TLV> {
         };
     d4_defs.insert(tlv.t, tlv);
 
-    let mut tlv = DOCSIS4TLV {
+    let  tlv = DOCSIS4TLV {
         t: 0x1d,
         description: "GlobalPrivacyEnable".to_string(),
         data_type: DATATYPE::UCHAR,
@@ -814,7 +813,7 @@ pub(crate) fn d4_defs() -> HashMap<u8, DOCSIS4TLV> {
     };
     d4_defs.insert(tlv.t, tlv);
 
-    let mut tlv = DOCSIS4TLV {
+    let  tlv = DOCSIS4TLV {
         t: 0x20,
         description: "MfgCVCData".to_string(),
         data_type: DATATYPE::HEXSTR,
@@ -824,7 +823,7 @@ pub(crate) fn d4_defs() -> HashMap<u8, DOCSIS4TLV> {
     };
     d4_defs.insert(tlv.t, tlv);
 
-    let mut tlv = DOCSIS4TLV {
+    let  tlv = DOCSIS4TLV {
         t: 0x21,
         description: "CoSignerCVCData".to_string(),
         data_type: DATATYPE::HEXSTR,
@@ -834,7 +833,7 @@ pub(crate) fn d4_defs() -> HashMap<u8, DOCSIS4TLV> {
     };
     d4_defs.insert(tlv.t, tlv);
 
-    let mut tlv = DOCSIS4TLV {
+    let  tlv = DOCSIS4TLV {
         t: 0x2b,
         description: "DsServiceFlow".to_string(),
         data_type: DATATYPE::AGGREGATE,
@@ -844,7 +843,7 @@ pub(crate) fn d4_defs() -> HashMap<u8, DOCSIS4TLV> {
         };
     d4_defs.insert(tlv.t, tlv);
 
-    let mut tlv = DOCSIS4TLV {
+    let  tlv = DOCSIS4TLV {
         t: 0x3c,
         description: "UpstreamDropPacketClassification".to_string(),
         data_type: DATATYPE::AGGREGATE,
@@ -862,7 +861,7 @@ pub(crate) fn d4_defs() -> HashMap<u8, DOCSIS4TLV> {
         sub_tlvs: HashMap::new(),
         mib: None,
         };
-    let mut sub_tlv = DOCSIS4TLV {
+    let  sub_tlv = DOCSIS4TLV {
         t: 0x01,
         description: "DiplexerUpstreamUpperBandEdge".to_string(),
         data_type: DATATYPE::UCHAR,
@@ -871,7 +870,7 @@ pub(crate) fn d4_defs() -> HashMap<u8, DOCSIS4TLV> {
         mib: None,
     };
     tlv.sub_tlvs.insert(sub_tlv.t, sub_tlv);
-    let mut sub_tlv = DOCSIS4TLV {
+    let  sub_tlv = DOCSIS4TLV {
         t: 0x02,
         description: "DiplexerDownstreamLowerBandEdge".to_string(),
         data_type: DATATYPE::UCHAR,
@@ -880,7 +879,7 @@ pub(crate) fn d4_defs() -> HashMap<u8, DOCSIS4TLV> {
         mib: None,
     };
     tlv.sub_tlvs.insert(sub_tlv.t, sub_tlv);
-    let mut sub_tlv = DOCSIS4TLV {
+    let  sub_tlv = DOCSIS4TLV {
         t: 0x03,
         description: "DiplexerDownstreamUpperBandEdge".to_string(),
         data_type: DATATYPE::UCHAR,
@@ -891,7 +890,7 @@ pub(crate) fn d4_defs() -> HashMap<u8, DOCSIS4TLV> {
     tlv.sub_tlvs.insert(sub_tlv.t, sub_tlv);
     d4_defs.insert(tlv.t, tlv);
 
-    let mut tlv = DOCSIS4TLV {
+    let  tlv = DOCSIS4TLV {
         t: 0xca,
         description: "eRouter".to_string(),
         data_type: DATATYPE::AGGREGATE,
@@ -901,7 +900,7 @@ pub(crate) fn d4_defs() -> HashMap<u8, DOCSIS4TLV> {
         };
     d4_defs.insert(tlv.t, tlv);
 
-    let mut tlv = DOCSIS4TLV {
+    let  tlv = DOCSIS4TLV {
         t: 0xff,
         description: "/*EndOfDataMkr*/".to_string(),
         data_type: DATATYPE::UINT,

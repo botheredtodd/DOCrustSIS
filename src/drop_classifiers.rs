@@ -6,7 +6,7 @@ use crate::d4::DOCSIS4TLV;
 
 pub(crate) fn upstream_drop_classifiers() -> HashMap<u8, DOCSIS4TLV> {
     let mut d4_defs: HashMap<u8, DOCSIS4TLV> = HashMap::new();
-    let mut sub_tlv = DOCSIS4TLV {
+    let sub_tlv = DOCSIS4TLV {
         t: 0x01,
         description: "ClassifierReference".to_string(),
         data_type: DATATYPE::UCHAR,
@@ -15,7 +15,7 @@ pub(crate) fn upstream_drop_classifiers() -> HashMap<u8, DOCSIS4TLV> {
         mib: None,
     };
     d4_defs.insert(sub_tlv.t, sub_tlv);
-    let mut sub_tlv = DOCSIS4TLV {
+    let sub_tlv = DOCSIS4TLV {
         t: 0x02,
         description: "ClassifierIdentifier".to_string(),
         data_type: DATATYPE::USHORT,
@@ -24,7 +24,7 @@ pub(crate) fn upstream_drop_classifiers() -> HashMap<u8, DOCSIS4TLV> {
         mib: None,
     };
     d4_defs.insert(sub_tlv.t, sub_tlv);
-    let mut sub_tlv = DOCSIS4TLV {
+    let sub_tlv = DOCSIS4TLV {
         t: 0x05,
         description: "RulePriority".to_string(),
         data_type: DATATYPE::UCHAR,
@@ -33,7 +33,7 @@ pub(crate) fn upstream_drop_classifiers() -> HashMap<u8, DOCSIS4TLV> {
         mib: None,
     };
     d4_defs.insert(sub_tlv.t, sub_tlv);
-    let mut sub_tlv = DOCSIS4TLV {
+    let sub_tlv = DOCSIS4TLV {
         t: 0x07,
         description: "DynamicServiceChangeAction".to_string(),
         data_type: DATATYPE::UCHAR,
@@ -50,7 +50,7 @@ pub(crate) fn upstream_drop_classifiers() -> HashMap<u8, DOCSIS4TLV> {
         sub_tlvs: HashMap::new(),
         mib: None,
     };
-    let mut sub_sub_tlv = DOCSIS4TLV {
+    let sub_sub_tlv = DOCSIS4TLV {
         t: 0x01,
         description: "IPv4Tos".to_string(),
         data_type: DATATYPE::HEXSTR,
@@ -59,7 +59,7 @@ pub(crate) fn upstream_drop_classifiers() -> HashMap<u8, DOCSIS4TLV> {
         mib: None,
     };
     sub_tlv.sub_tlvs.insert(sub_sub_tlv.t, sub_sub_tlv);
-    let mut sub_sub_tlv = DOCSIS4TLV {
+    let sub_sub_tlv = DOCSIS4TLV {
         t: 0x02,
         description: "IPProtocol".to_string(),
         data_type: DATATYPE::USHORT,
@@ -68,7 +68,7 @@ pub(crate) fn upstream_drop_classifiers() -> HashMap<u8, DOCSIS4TLV> {
         mib: None,
     };
     sub_tlv.sub_tlvs.insert(sub_sub_tlv.t, sub_sub_tlv);
-    let mut sub_sub_tlv = DOCSIS4TLV {
+    let sub_sub_tlv = DOCSIS4TLV {
         t: 0x03,
         description: "IPv4SourceAddress".to_string(),
         data_type: DATATYPE::ENCODE_IP,
@@ -77,7 +77,7 @@ pub(crate) fn upstream_drop_classifiers() -> HashMap<u8, DOCSIS4TLV> {
         mib: None,
     };
     sub_tlv.sub_tlvs.insert(sub_sub_tlv.t, sub_sub_tlv);
-    let mut sub_sub_tlv = DOCSIS4TLV {
+    let sub_sub_tlv = DOCSIS4TLV {
         t: 0x04,
         description: "IPv4SourceMask".to_string(),
         data_type: DATATYPE::ENCODE_IP,
@@ -86,7 +86,7 @@ pub(crate) fn upstream_drop_classifiers() -> HashMap<u8, DOCSIS4TLV> {
         mib: None,
     };
     sub_tlv.sub_tlvs.insert(sub_sub_tlv.t, sub_sub_tlv);
-    let mut sub_sub_tlv = DOCSIS4TLV {
+    let sub_sub_tlv = DOCSIS4TLV {
         t: 0x05,
         description: "IPv4DestinationAddress".to_string(),
         data_type: DATATYPE::ENCODE_IP,
@@ -95,7 +95,7 @@ pub(crate) fn upstream_drop_classifiers() -> HashMap<u8, DOCSIS4TLV> {
         mib: None,
     };
     sub_tlv.sub_tlvs.insert(sub_sub_tlv.t, sub_sub_tlv);
-    let mut sub_sub_tlv = DOCSIS4TLV {
+    let sub_sub_tlv = DOCSIS4TLV {
         t: 0x06,
         description: "IPv4DestinationMask".to_string(),
         data_type: DATATYPE::ENCODE_IP,
@@ -104,7 +104,7 @@ pub(crate) fn upstream_drop_classifiers() -> HashMap<u8, DOCSIS4TLV> {
         mib: None,
     };
     sub_tlv.sub_tlvs.insert(sub_sub_tlv.t, sub_sub_tlv);
-    let mut sub_sub_tlv = DOCSIS4TLV {
+    let sub_sub_tlv = DOCSIS4TLV {
         t: 0x07,
         description: "SourcePortStart".to_string(),
         data_type: DATATYPE::USHORT,
@@ -113,7 +113,7 @@ pub(crate) fn upstream_drop_classifiers() -> HashMap<u8, DOCSIS4TLV> {
         mib: None,
     };
     sub_tlv.sub_tlvs.insert(sub_sub_tlv.t, sub_sub_tlv);
-    let mut sub_sub_tlv = DOCSIS4TLV {
+    let sub_sub_tlv = DOCSIS4TLV {
         t: 0x08,
         description: "SourcePortEnd".to_string(),
         data_type: DATATYPE::USHORT,
@@ -122,7 +122,7 @@ pub(crate) fn upstream_drop_classifiers() -> HashMap<u8, DOCSIS4TLV> {
         mib: None,
     };
     sub_tlv.sub_tlvs.insert(sub_sub_tlv.t, sub_sub_tlv);
-    let mut sub_sub_tlv = DOCSIS4TLV {
+    let sub_sub_tlv = DOCSIS4TLV {
         t: 0x09,
         description: "DestinationPortStart".to_string(),
         data_type: DATATYPE::USHORT,
@@ -131,7 +131,7 @@ pub(crate) fn upstream_drop_classifiers() -> HashMap<u8, DOCSIS4TLV> {
         mib: None,
     };
     sub_tlv.sub_tlvs.insert(sub_sub_tlv.t, sub_sub_tlv);
-    let mut sub_sub_tlv = DOCSIS4TLV {
+    let sub_sub_tlv = DOCSIS4TLV {
         t: 0x0a,
         description: "DestinationPortEnd".to_string(),
         data_type: DATATYPE::USHORT,
@@ -143,7 +143,7 @@ pub(crate) fn upstream_drop_classifiers() -> HashMap<u8, DOCSIS4TLV> {
     //TODO: Add the rest of the sub_sub_tlvs
     d4_defs.insert(sub_tlv.t, sub_tlv);
 
-    let mut sub_tlv = DOCSIS4TLV {
+    let sub_tlv = DOCSIS4TLV {
         t: 0x0d,
         description: "CMInterfaceMaskEncoding".to_string(),
         data_type: DATATYPE::HEXSTR,

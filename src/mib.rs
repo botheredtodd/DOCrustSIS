@@ -3,11 +3,9 @@ use std::collections::HashMap;
 use rustc_serialize::json::Json;
 use std::fs::File;
 use std::io::Read;
-use serde::Serialize;
-use crate::d4::DATATYPE;
+use serde::ser::{Serialize, Serializer, SerializeStruct};
 
 #[derive(Clone)]
-#[derive(Serialize)]
 pub(crate) struct MIB {
     pub(crate) name: String,
     pub(crate) description: String,
@@ -17,7 +15,70 @@ pub(crate) struct MIB {
     pub(crate) index: u8,
 }
 
+impl Serialize for MIB {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let mut bytes = "".to_string();
+        for i in 0..self.value.len() {
+            bytes.push_str(format!("{:02x}", self.value[i as usize]).as_str());
+            if i < self.value.len() - 1 {
+                bytes.push_str(":");
+            }
+        }
+        let mut state = serializer.serialize_struct("MIB", 3)?;
+        state.serialize_field("Name", &self.name)?;
+        state.serialize_field("Description", &self.description)?;
+        state.serialize_field("OID", &self.oid)?;
+        state.serialize_field("DataType", &self.datatype)?;
+        state.serialize_field("Index", &self.index)?;
+        state.serialize_field("Value", &bytes)?;
+        match self.datatype.as_str() {
+            "Integer32" => {
+                let mut val = 0;
+                for b in &self.value {
+                    val = (val << 8) | *b as u32;
+                }
+                state.serialize_field("Decoded Value", &val)?;
+            }
+            "OctetString" => {
+                let mut val = String::new();
+                for b in &self.value {
+                    val.push_str(format!("{}", *b as char).as_str());
+                }
+                state.serialize_field("Decoded Value", &val)?;
+            }
+            "IPAddress" => {
+                let val = format!("{}.{}.{}.{}", self.value[0], self.value[1], self.value[2], self.value[3]);
+                state.serialize_field("Decoded Value", &val)?;
+            }
+            "Boolean" => {
+                let val = self.value[0] == 0x01;
+                state.serialize_field("Decoded Value", &val)?;
+            }
+            "BitString" => {
+                let mut val = 0;
+                for b in &self.value {
+                    val = (val << 8) | *b as u32;
+                }
+                state.serialize_field("Decoded Value", &val)?;
+            }
+            "Counter32" => {
+                let mut val = 0;
+                for b in &self.value {
+                    val = (val << 8) | *b as u32;
+                }
+                state.serialize_field("Decoded Value", &val)?;
+            }
+            _ => {
+                state.serialize_field("Decoded Value", &bytes)?;
+            }
+        }
 
+        state.end()
+    }
+}
 
 impl MIB{
     pub(crate) fn from_bytes(bytes: Vec<u8>) -> MIB {
@@ -73,7 +134,6 @@ impl MIB{
 
         oid_length -= 1;
         let mut val = 0 as u32;
-        let mut in_index = false;
         while i < bytes.len() {
             oid_length -= 1;
             if oid_length == 0 {
@@ -106,15 +166,14 @@ impl MIB{
             // if print_var {
             //     println!(" New val: {}", val);
             // }
-            if in_index == false {
-                if bytes[i] & 0x80 != 0x80 {
-                    oid_string.push_str(format!(".{}", val).as_str());
-                    val = 0
-                }
+            if bytes[i] & 0x80 != 0x80 {
+                oid_string.push_str(format!(".{}", val).as_str());
+                val = 0
+            }
                 // else {
                 //     println!("Val is {}", val);
                 // }
-             }
+
             i += 1;
         }
         println!("OID with garbage: {}", oid_string);

@@ -5,7 +5,7 @@ use crate::d4::DATATYPE;
 use crate::d4::DOCSIS4TLV;
 pub(crate) fn erouter() -> HashMap<u8, DOCSIS4TLV> {
     let mut d4_defs: HashMap<u8, DOCSIS4TLV> = HashMap::new();
-    let mut sub_tlv = DOCSIS4TLV {
+    let sub_tlv = DOCSIS4TLV {
         t: 0x01,
         description: "InitializationMode".to_string(),
         data_type: DATATYPE::UCHAR,
@@ -22,7 +22,7 @@ pub(crate) fn erouter() -> HashMap<u8, DOCSIS4TLV> {
         sub_tlvs: HashMap::new(),
         mib: None,
     };
-    let mut sub_sub_tlv = DOCSIS4TLV {
+    let sub_sub_tlv = DOCSIS4TLV {
         t: 0x01,
         description: "EnableCWMP".to_string(),
         data_type: DATATYPE::UCHAR,
@@ -31,7 +31,7 @@ pub(crate) fn erouter() -> HashMap<u8, DOCSIS4TLV> {
         mib: None,
     };
     sub_tlv.sub_tlvs.insert(sub_sub_tlv.t, sub_sub_tlv);
-    let mut sub_sub_tlv = DOCSIS4TLV {
+    let sub_sub_tlv = DOCSIS4TLV {
         t: 0x02,
         description: "URL".to_string(),
         data_type: DATATYPE::STRING,
@@ -41,7 +41,7 @@ pub(crate) fn erouter() -> HashMap<u8, DOCSIS4TLV> {
     };
     sub_tlv.sub_tlvs.insert(sub_sub_tlv.t, sub_sub_tlv);
 
-    let mut sub_sub_tlv = DOCSIS4TLV {
+    let sub_sub_tlv = DOCSIS4TLV {
         t: 0x07,
         description: "ACSOverride".to_string(),
         data_type: DATATYPE::UCHAR,

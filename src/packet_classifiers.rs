@@ -5,7 +5,7 @@ use crate::d4::DATATYPE;
 use crate::d4::DOCSIS4TLV;
 pub(crate) fn packet_classifiers() -> HashMap<u8, DOCSIS4TLV> {
     let mut d4_defs: HashMap<u8, DOCSIS4TLV> = HashMap::new();
-    let mut sub_tlv = DOCSIS4TLV {
+    let sub_tlv = DOCSIS4TLV {
         t: 0x01,
         description: "ClassifierRef".to_string(),
         data_type: DATATYPE::UCHAR,
@@ -15,7 +15,7 @@ pub(crate) fn packet_classifiers() -> HashMap<u8, DOCSIS4TLV> {
     };
     d4_defs.insert(sub_tlv.t, sub_tlv);
 
-    let mut sub_tlv = DOCSIS4TLV {
+    let sub_tlv = DOCSIS4TLV {
         t: 0x03,
         description: "ServiceFlowRef".to_string(),
         data_type: DATATYPE::USHORT,
@@ -25,7 +25,7 @@ pub(crate) fn packet_classifiers() -> HashMap<u8, DOCSIS4TLV> {
     };
     d4_defs.insert(sub_tlv.t, sub_tlv);
 
-    let mut sub_tlv = DOCSIS4TLV {
+    let sub_tlv = DOCSIS4TLV {
         t: 0x05,
         description: "RulePriority".to_string(),
         data_type: DATATYPE::UCHAR,
@@ -34,7 +34,7 @@ pub(crate) fn packet_classifiers() -> HashMap<u8, DOCSIS4TLV> {
         mib: None,
     };
     d4_defs.insert(sub_tlv.t, sub_tlv);
-    let mut sub_tlv = DOCSIS4TLV {
+    let sub_tlv = DOCSIS4TLV {
         t: 0x06,
         description: "ActivationState".to_string(),
         data_type: DATATYPE::UCHAR,
@@ -52,7 +52,7 @@ pub(crate) fn packet_classifiers() -> HashMap<u8, DOCSIS4TLV> {
         sub_tlvs: HashMap::new(),
         mib: None,
     };
-    let mut sub_sub_tlv = DOCSIS4TLV {
+    let sub_sub_tlv = DOCSIS4TLV {
         t: 0x01,
         description: "IpTos".to_string(),
         data_type: DATATYPE::HEXSTR,
@@ -61,7 +61,7 @@ pub(crate) fn packet_classifiers() -> HashMap<u8, DOCSIS4TLV> {
         mib: None,
     };
     sub_tlv.sub_tlvs.insert(sub_sub_tlv.t, sub_sub_tlv);
-    let mut sub_sub_tlv = DOCSIS4TLV {
+    let sub_sub_tlv = DOCSIS4TLV {
         t: 0x02,
         description: "IpProto".to_string(),
         data_type: DATATYPE::USHORT,
@@ -70,7 +70,7 @@ pub(crate) fn packet_classifiers() -> HashMap<u8, DOCSIS4TLV> {
         mib: None,
     };
     sub_tlv.sub_tlvs.insert(sub_sub_tlv.t, sub_sub_tlv);
-    let mut sub_sub_tlv = DOCSIS4TLV {
+    let sub_sub_tlv = DOCSIS4TLV {
         t: 0x03,
         description: "IpSrcAddr".to_string(),
         data_type: DATATYPE::ENCODE_IP,
@@ -79,7 +79,7 @@ pub(crate) fn packet_classifiers() -> HashMap<u8, DOCSIS4TLV> {
         mib: None,
     };
     sub_tlv.sub_tlvs.insert(sub_sub_tlv.t, sub_sub_tlv);
-    let mut sub_sub_tlv = DOCSIS4TLV {
+    let sub_sub_tlv = DOCSIS4TLV {
         t: 0x04,
         description: "IpSrcMask".to_string(),
         data_type: DATATYPE::ENCODE_IP,
@@ -88,7 +88,7 @@ pub(crate) fn packet_classifiers() -> HashMap<u8, DOCSIS4TLV> {
         mib: None,
     };
     sub_tlv.sub_tlvs.insert(sub_sub_tlv.t, sub_sub_tlv);
-    let mut sub_sub_tlv = DOCSIS4TLV {
+    let sub_sub_tlv = DOCSIS4TLV {
         t: 0x05,
         description: "IpDstAddr".to_string(),
         data_type: DATATYPE::ENCODE_IP,
@@ -97,7 +97,7 @@ pub(crate) fn packet_classifiers() -> HashMap<u8, DOCSIS4TLV> {
         mib: None,
     };
     sub_tlv.sub_tlvs.insert(sub_sub_tlv.t, sub_sub_tlv);
-    let mut sub_sub_tlv = DOCSIS4TLV {
+    let sub_sub_tlv = DOCSIS4TLV {
         t: 0x06,
         description: "IpDstMask".to_string(),
         data_type: DATATYPE::ENCODE_IP,
@@ -106,7 +106,7 @@ pub(crate) fn packet_classifiers() -> HashMap<u8, DOCSIS4TLV> {
         mib: None,
     };
     sub_tlv.sub_tlvs.insert(sub_sub_tlv.t, sub_sub_tlv);
-    let mut sub_sub_tlv = DOCSIS4TLV {
+    let sub_sub_tlv = DOCSIS4TLV {
         t: 0x07,
         description: "SrcPortStart".to_string(),
         data_type: DATATYPE::USHORT,
@@ -115,7 +115,7 @@ pub(crate) fn packet_classifiers() -> HashMap<u8, DOCSIS4TLV> {
         mib: None,
     };
     sub_tlv.sub_tlvs.insert(sub_sub_tlv.t, sub_sub_tlv);
-    let mut sub_sub_tlv = DOCSIS4TLV {
+    let sub_sub_tlv = DOCSIS4TLV {
         t: 0x08,
         description: "SrcPortEnd".to_string(),
         data_type: DATATYPE::USHORT,
@@ -124,7 +124,7 @@ pub(crate) fn packet_classifiers() -> HashMap<u8, DOCSIS4TLV> {
         mib: None,
     };
     sub_tlv.sub_tlvs.insert(sub_sub_tlv.t, sub_sub_tlv);
-    let mut sub_sub_tlv = DOCSIS4TLV {
+    let sub_sub_tlv = DOCSIS4TLV {
         t: 0x09,
         description: "DstPortStart".to_string(),
         data_type: DATATYPE::USHORT,
@@ -133,7 +133,7 @@ pub(crate) fn packet_classifiers() -> HashMap<u8, DOCSIS4TLV> {
         mib: None,
     };
     sub_tlv.sub_tlvs.insert(sub_sub_tlv.t, sub_sub_tlv);
-    let mut sub_sub_tlv = DOCSIS4TLV {
+    let sub_sub_tlv = DOCSIS4TLV {
         t: 0x0a,
         description: "DstPortEnd".to_string(),
         data_type: DATATYPE::USHORT,
@@ -153,7 +153,7 @@ pub(crate) fn packet_classifiers() -> HashMap<u8, DOCSIS4TLV> {
         sub_tlvs: HashMap::new(),
         mib: None,
     };
-    let mut sub_sub_tlv = DOCSIS4TLV {
+    let sub_sub_tlv = DOCSIS4TLV {
         t: 0x01,
         description: "DstMacAddress".to_string(),
         data_type: DATATYPE::ENCODE_MAC,
@@ -162,7 +162,7 @@ pub(crate) fn packet_classifiers() -> HashMap<u8, DOCSIS4TLV> {
         mib: None,
     };
     sub_tlv.sub_tlvs.insert(sub_sub_tlv.t, sub_sub_tlv);
-    let mut sub_sub_tlv = DOCSIS4TLV {
+    let sub_sub_tlv = DOCSIS4TLV {
         t: 0x02,
         description: "SrcMacAddress".to_string(),
         data_type: DATATYPE::ENCODE_MAC,
@@ -171,7 +171,7 @@ pub(crate) fn packet_classifiers() -> HashMap<u8, DOCSIS4TLV> {
         mib: None,
     };
     sub_tlv.sub_tlvs.insert(sub_sub_tlv.t, sub_sub_tlv);
-    let mut sub_sub_tlv = DOCSIS4TLV {
+    let sub_sub_tlv = DOCSIS4TLV {
         t: 0x03,
         description: "EtherType".to_string(),
         data_type: DATATYPE::HEXSTR,
@@ -190,7 +190,7 @@ pub(crate) fn packet_classifiers() -> HashMap<u8, DOCSIS4TLV> {
         sub_tlvs: HashMap::new(),
         mib: None,
     };
-    let mut sub_sub_tlv = DOCSIS4TLV {
+    let sub_sub_tlv = DOCSIS4TLV {
         t: 0x01,
         description: "PcIPv6TrafficClassRangeAndMask".to_string(),
         data_type: DATATYPE::HEXSTR,
@@ -199,7 +199,7 @@ pub(crate) fn packet_classifiers() -> HashMap<u8, DOCSIS4TLV> {
         mib: None,
     };
     sub_tlv.sub_tlvs.insert(sub_sub_tlv.t, sub_sub_tlv);
-    let mut sub_sub_tlv = DOCSIS4TLV {
+    let sub_sub_tlv = DOCSIS4TLV {
         t: 0x02,
         description: "PcIPv6FlowLabel".to_string(),
         data_type: DATATYPE::HEXSTR,
@@ -208,7 +208,7 @@ pub(crate) fn packet_classifiers() -> HashMap<u8, DOCSIS4TLV> {
         mib: None,
     };
     sub_tlv.sub_tlvs.insert(sub_sub_tlv.t, sub_sub_tlv);
-    let mut sub_sub_tlv = DOCSIS4TLV {
+    let sub_sub_tlv = DOCSIS4TLV {
         t: 0x03,
         description: "PcIPv6NextHeaderType".to_string(),
         data_type: DATATYPE::USHORT,
@@ -217,7 +217,7 @@ pub(crate) fn packet_classifiers() -> HashMap<u8, DOCSIS4TLV> {
         mib: None,
     };
     sub_tlv.sub_tlvs.insert(sub_sub_tlv.t, sub_sub_tlv);
-    let mut sub_sub_tlv = DOCSIS4TLV {
+    let sub_sub_tlv = DOCSIS4TLV {
         t: 0x04,
         description: "PcIPv6SourceAddress".to_string(),
         data_type: DATATYPE::ENCODE_IP,
@@ -226,7 +226,7 @@ pub(crate) fn packet_classifiers() -> HashMap<u8, DOCSIS4TLV> {
         mib: None,
     };
     sub_tlv.sub_tlvs.insert(sub_sub_tlv.t, sub_sub_tlv);
-    let mut sub_sub_tlv = DOCSIS4TLV {
+    let sub_sub_tlv = DOCSIS4TLV {
         t: 0x05,
         description: "PcIPv6SourcePrefixLength".to_string(),
         data_type: DATATYPE::UCHAR,
@@ -235,7 +235,7 @@ pub(crate) fn packet_classifiers() -> HashMap<u8, DOCSIS4TLV> {
         mib: None,
     };
     sub_tlv.sub_tlvs.insert(sub_sub_tlv.t, sub_sub_tlv);
-    let mut sub_sub_tlv = DOCSIS4TLV {
+    let sub_sub_tlv = DOCSIS4TLV {
         t: 0x06,
         description: "PcIPv6DestAddress".to_string(),
         data_type: DATATYPE::ENCODE_IP,
@@ -244,7 +244,7 @@ pub(crate) fn packet_classifiers() -> HashMap<u8, DOCSIS4TLV> {
         mib: None,
     };
     sub_tlv.sub_tlvs.insert(sub_sub_tlv.t, sub_sub_tlv);
-    let mut sub_sub_tlv = DOCSIS4TLV {
+    let sub_sub_tlv = DOCSIS4TLV {
         t: 0x07,
         description: "PcIPv6DestPrefixLength".to_string(),
         data_type: DATATYPE::UCHAR,

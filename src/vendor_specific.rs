@@ -5,7 +5,7 @@ use crate::d4::DATATYPE;
 use crate::d4::DOCSIS4TLV;
 pub(crate) fn docsis_vendor_specific() -> HashMap<u8, DOCSIS4TLV> {
     let mut d4_defs: HashMap<u8, DOCSIS4TLV> = HashMap::new();
-    let mut sub_tlv = DOCSIS4TLV {
+    let sub_tlv = DOCSIS4TLV {
         t: 0x01,
         description: "CMLoadBalancingPolicyID".to_string(),
         data_type: DATATYPE::UINT,
@@ -15,7 +15,7 @@ pub(crate) fn docsis_vendor_specific() -> HashMap<u8, DOCSIS4TLV> {
     };
     d4_defs.insert(sub_tlv.t, sub_tlv);
 
-    let mut sub_tlv = DOCSIS4TLV {
+    let sub_tlv = DOCSIS4TLV {
         t: 0x08,
         description: "VendorIdentifier".to_string(),
         data_type: DATATYPE::HEXSTR,
@@ -33,7 +33,7 @@ pub(crate) fn docsis_vendor_specific() -> HashMap<u8, DOCSIS4TLV> {
         sub_tlvs: HashMap::new(),
         mib: None,
     };
-    let mut sub_sub_tlv = DOCSIS4TLV {
+    let sub_sub_tlv = DOCSIS4TLV {
         t: 0x04,
         description: "CMUpstreamForbiddenAttributeMask".to_string(),
         data_type: DATATYPE::HEXSTR,
@@ -44,7 +44,7 @@ pub(crate) fn docsis_vendor_specific() -> HashMap<u8, DOCSIS4TLV> {
     sub_tlv.sub_tlvs.insert(sub_sub_tlv.t, sub_sub_tlv);
     d4_defs.insert(sub_tlv.t, sub_tlv);
 
-    let mut sub_tlv = DOCSIS4TLV {
+    let sub_tlv = DOCSIS4TLV {
         t: 0xa1,
         description: "vendor specific unknown".to_string(),
         data_type: DATATYPE::HEXSTR,
