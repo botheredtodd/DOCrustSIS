@@ -15,6 +15,7 @@ use crate::vendor_specific::docsis_vendor_specific;
 use crate::erouter::erouter;
 use crate::packet_classifiers::packet_classifiers;
 use serde::ser::{Serialize, Serializer, SerializeStruct};
+use serde::de::{self, Deserialize, Deserializer, Visitor, SeqAccess, MapAccess};
 // error_chain! {
 //     foreign_links {
 //         Io(std::io::Error);

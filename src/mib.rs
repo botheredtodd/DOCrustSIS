@@ -4,15 +4,17 @@ use rustc_serialize::json::Json;
 use std::fs::File;
 use std::io::Read;
 use serde::ser::{Serialize, Serializer, SerializeStruct};
+use serde::de::{self, Deserialize, Deserializer, Visitor, SeqAccess, MapAccess};
+use std::fmt;
 
 #[derive(Clone)]
 pub(crate) struct MIB {
     pub(crate) name: String,
     pub(crate) description: String,
     pub(crate) oid: String,
-    pub(crate) value: Vec<u8>,
     pub(crate) datatype: String,
     pub(crate) index: u8,
+    pub(crate) value: Vec<u8>,
 }
 
 impl Serialize for MIB {
@@ -40,39 +42,39 @@ impl Serialize for MIB {
                 for b in &self.value {
                     val = (val << 8) | *b as u32;
                 }
-                state.serialize_field("Decoded Value", &val)?;
+                state.serialize_field("DecodedValue", &val)?;
             }
             "OctetString" => {
                 let mut val = String::new();
                 for b in &self.value {
                     val.push_str(format!("{}", *b as char).as_str());
                 }
-                state.serialize_field("Decoded Value", &val)?;
+                state.serialize_field("DecodedValue", &val)?;
             }
             "IPAddress" => {
                 let val = format!("{}.{}.{}.{}", self.value[0], self.value[1], self.value[2], self.value[3]);
-                state.serialize_field("Decoded Value", &val)?;
+                state.serialize_field("DecodedValue", &val)?;
             }
             "Boolean" => {
                 let val = self.value[0] == 0x01;
-                state.serialize_field("Decoded Value", &val)?;
+                state.serialize_field("DecodedValue", &val)?;
             }
             "BitString" => {
                 let mut val = 0;
                 for b in &self.value {
                     val = (val << 8) | *b as u32;
                 }
-                state.serialize_field("Decoded Value", &val)?;
+                state.serialize_field("DecodedValue", &val)?;
             }
             "Counter32" => {
                 let mut val = 0;
                 for b in &self.value {
                     val = (val << 8) | *b as u32;
                 }
-                state.serialize_field("Decoded Value", &val)?;
+                state.serialize_field("DecodedValue", &val)?;
             }
             _ => {
-                state.serialize_field("Decoded Value", &bytes)?;
+                state.serialize_field("DecodedValue", &bytes)?;
             }
         }
 
@@ -260,4 +262,144 @@ impl MIBList {
         }
         retval
 }
+}
+
+
+impl<'de> Deserialize<'de> for MIB {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        enum Field { Name, DataType, Description, OID, Value, Index, DecodedValue }
+        const FIELDS: &[&str] = &["Name", "DataType", "Description", "OID", "Value", "Index", "DecodedValue"];
+        impl<'de> Deserialize<'de> for Field {
+            fn deserialize<D>(deserializer: D) -> Result<Field, D::Error>
+            where
+                D: Deserializer<'de>,
+            {
+                struct FieldVisitor;
+
+                impl<'de> Visitor<'de> for FieldVisitor {
+                    type Value = Field;
+
+                    fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+                        formatter.write_str("Must be Name, DataType, Description, OID, Value, Index, DecodedValue")
+                    }
+
+                    fn visit_str<E>(self, value: &str) -> Result<Field, E>
+                    where
+                        E: de::Error,
+                    {
+                        match value {
+                            "Name" => Ok(Field::Name),
+                            "Description" => Ok(Field::Description),
+                            "OID" => Ok(Field::OID),
+                            "DataType" => Ok(Field::DataType),
+                            "Index" => Ok(Field::Index),
+                            "Value" => Ok(Field::Value),
+                            "DecodedValue" => Ok(Field::DecodedValue),
+                            _ => Err(de::Error::unknown_field(value, FIELDS)),
+
+                        }
+                    }
+                }
+
+                deserializer.deserialize_identifier(FieldVisitor)
+            }
+        }
+
+        struct MibVisitor;
+
+        impl<'de> Visitor<'de> for MibVisitor {
+            type Value = MIB;
+
+            fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+                formatter.write_str("struct MIB")
+            }
+
+            fn visit_seq<V>(self, mut seq: V) -> Result<MIB, V::Error>
+            where
+                V: SeqAccess<'de>,
+            {
+                let name = seq.next_element()?
+                    .ok_or_else(|| de::Error::invalid_length(0, &self))?;
+                let description = seq.next_element()?
+                    .ok_or_else(|| de::Error::invalid_length(1, &self))?;
+                let oid = seq.next_element()?
+                    .ok_or_else(|| de::Error::invalid_length(2, &self))?;
+                let datatype = seq.next_element()?
+                    .ok_or_else(|| de::Error::invalid_length(4, &self))?;
+                let index = seq.next_element()?
+                    .ok_or_else(|| de::Error::invalid_length(5, &self))?;
+                let value = seq.next_element()?
+                    .ok_or_else(|| de::Error::invalid_length(6, &self))?;
+                Ok(MIB { name, description, oid, datatype, index, value  })
+            }
+
+
+            fn visit_map<V>(self, mut map: V) -> Result<MIB, V::Error>
+            where
+                V: MapAccess<'de>,
+            {
+                let mut name = None;
+                let mut description = None;
+                let mut oid = None;
+                let mut datatype = None;
+                let mut index = None;
+                let mut value = None;
+                while let Some(key) = map.next_key()? {
+                    match key {
+                        Field::Name => {
+                            if name.is_some() {
+                                return Err(de::Error::duplicate_field("name"));
+                            }
+                            name = Some(map.next_value()?);
+                        }
+                        Field::Description => {
+                            if description.is_some() {
+                                return Err(de::Error::duplicate_field("description"));
+                            }
+                            description = Some(map.next_value()?);
+                        }
+                        Field::OID => {
+                            if oid.is_some() {
+                                return Err(de::Error::duplicate_field("oid"));
+                            }
+                            oid = Some(map.next_value()?);
+                        }
+                        Field::DataType => {
+                            if datatype.is_some() {
+                                return Err(de::Error::duplicate_field("datatype"));
+                            }
+                            datatype = Some(map.next_value()?);
+                        }
+                        Field::Index => {
+                            if index.is_some() {
+                                return Err(de::Error::duplicate_field("index"));
+                            }
+                            index = Some(map.next_value()?);
+                        }
+                        Field::Value => {
+                            if value.is_some() {
+                                return Err(de::Error::duplicate_field("value"));
+                            }
+                            value = Some(map.next_value()?);
+                        }
+                        Field::DecodedValue => {
+                            let _ = map.next_value::<String>()?;
+                        }
+                    }
+                }
+                let name = name.ok_or_else(|| de::Error::missing_field("name"))?;
+                let description = description.ok_or_else(|| de::Error::missing_field("description"))?;
+                let oid = oid.ok_or_else(|| de::Error::missing_field("oid"))?;
+                let datatype = datatype.ok_or_else(|| de::Error::missing_field("datatype"))?;
+                let index = index.ok_or_else(|| de::Error::missing_field("index"))?;
+                let value = value.ok_or_else(|| de::Error::missing_field("value"))?;
+                Ok(MIB { name, description, oid, datatype, index, value })
+            }
+        }
+
+        deserializer.deserialize_struct("MIB", FIELDS, MibVisitor)
+    }
 }
