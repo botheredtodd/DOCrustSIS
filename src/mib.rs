@@ -51,6 +51,13 @@ impl Serialize for MIB {
                 }
                 state.serialize_field("DecodedValue", &val)?;
             }
+            "SnmpAdminString" => {
+                let mut val = String::new();
+                for b in &self.value {
+                    val.push_str(format!("{}", *b as char).as_str());
+                }
+                state.serialize_field("DecodedValue", &val)?;
+            }
             "IPAddress" => {
                 let val = format!("{}.{}.{}.{}", self.value[0], self.value[1], self.value[2], self.value[3]);
                 state.serialize_field("DecodedValue", &val)?;
@@ -88,7 +95,7 @@ impl MIB{
         oid_data_types.insert(0x01, "Boolean".to_string());
         oid_data_types.insert(0x02, "Integer32".to_string());
         oid_data_types.insert(0x03, "BitString".to_string());
-        oid_data_types.insert(0x04, "OctetString".to_string());
+        oid_data_types.insert(0x04, "SnmpAdminString".to_string());
         oid_data_types.insert(0x05, "Null".to_string());
         oid_data_types.insert(0x06, "ObjectIdentifier".to_string());
         oid_data_types.insert(64, "IPAddress".to_string());
@@ -187,6 +194,11 @@ impl MIB{
                 for i in 0..self.value.len() {
                     retval.push_str(format!("{}", self.value[i as usize] as char).as_str());
                 }
+        }
+        else if self.datatype == "SnmpAdminString" {
+            for i in 0..self.value.len() {
+                retval.push_str(format!("{}", self.value[i as usize] as char).as_str());
+            }
         }
         else if self.datatype == "Integer32" {
             let mut val = 0;
